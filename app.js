@@ -106,7 +106,6 @@ function renderMarkers() {
   if(source)source.setData(makeAircraftGeoJSON());
 }
 function installAircraftLayers(){
-  if(!map.isStyleLoaded())return;
   try {
     const colorways={
       "radarx-plane-other":"#efb724",
