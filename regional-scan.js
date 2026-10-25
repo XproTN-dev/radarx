@@ -82,10 +82,11 @@ export function scanAircraft(time=Date.now(),useMilitary=true){
   const old=result.get(key);
   if(!old||obj.positionAt>old.positionAt)result.set(key,obj);
  }
- return [...result.values()].map(obj=>({
+ return [...result.entries()].map(([key,obj])=>({
   ...obj.record,
   seen_pos:Math.max(0,(time-obj.positionAt)/1000),
   __sector:obj.area,
+  __providerMilitary:military.has(key),
   __positionAt:obj.positionAt,
   __stale:time-obj.positionAt>LIVE_AGE_SECONDS*1000
  }));
