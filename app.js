@@ -2,18 +2,18 @@ import * as maplibregl from "https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-
 const API = "https://radarx.saifeddinkhmiri.workers.dev";
 const HOME = [51.53,25.72];
 const REGIONS = {
- qatar:{center:[51.53,25.72],zoom:7.25,radius:180,label:"QATAR / DOHA"},
- bahrain:{center:[50.64,26.17],zoom:7.45,radius:180,label:"BAHRAIN"},
- uae:{center:[54.66,24.81],zoom:7.0,radius:180,label:"UNITED ARAB EMIRATES"},
- kuwait:{center:[47.97,29.36],zoom:7.0,radius:180,label:"KUWAIT"},
- oman:{center:[58.53,23.61],zoom:7.05,radius:180,label:"OMAN"},
- saudi:{center:[49.82,26.45],zoom:7.0,radius:180,label:"EASTERN SAUDI ARABIA"}
+ qatar:{center:[51.53,25.72],zoom:7.25,radius:250,label:"QATAR / DOHA"},
+ bahrain:{center:[50.64,26.17],zoom:7.45,radius:250,label:"BAHRAIN"},
+ uae:{center:[54.66,24.81],zoom:7.0,radius:250,label:"UNITED ARAB EMIRATES"},
+ kuwait:{center:[47.97,29.36],zoom:7.0,radius:250,label:"KUWAIT"},
+ oman:{center:[58.53,23.61],zoom:7.05,radius:250,label:"OMAN"},
+ saudi:{center:[49.82,26.45],zoom:7.0,radius:250,label:"EASTERN SAUDI ARABIA"}
 };
 const STYLES = ["https://tiles.openfreemap.org/styles/bright","https://tiles.openfreemap.org/styles/liberty"];
 const $ = id => document.getElementById(id);
 const knownGovernmentHex = new Set([]); // V0.1: empty until a verifiable government dataset is integrated.
-let aircraft=[], selected="", filter="all", search="", updated=0, loading=false, styleIndex=0, requestedCenter=HOME.slice();
-let markers=new Map(), radiusNm=REGIONS.qatar.radius, queuedLoad=false, suppressAreaPrompt=false;
+let aircraft=[], selected="", filter="all", search="", updated=0, sampleTime=0, frozen=false, loading=false, styleIndex=0, requestedCenter=HOME.slice();
+let radiusNm=REGIONS.qatar.radius, queuedLoad=false, suppressAreaPrompt=false;
 const map=new maplibregl.Map({container:"map",style:STYLES[0],center:HOME,zoom:7.25,minZoom:3.6,maxZoom:16,bearing:0,pitch:0,maxPitch:0,dragRotate:false,attributionControl:false});
 map.addControl(new maplibregl.NavigationControl({showCompass:false}),"bottom-right");
 map.addControl(new maplibregl.AttributionControl({compact:true}),"bottom-right");
@@ -26,12 +26,30 @@ const fmt=(n,unit="")=>typeof n==="number"&&Number.isFinite(n)?Math.round(n).toL
 const altitude=a=>a.alt_baro==="ground"?"ON GROUND":fmt(a.alt_baro," ft");
 const put=(key,value)=>$(key).textContent=value;
 const match=a=> (filter==="all"||type(a)===filter) && (!search||[a.hex,a.flight,a.r,a.t,a.desc,a.ownOp].filter(Boolean).join(" ").toLowerCase().includes(search));
-const svg='<svg viewBox="0 0 32 32" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" stroke="#fff" stroke-width=".8" stroke-linejoin="round" d="M16 1.2c1.5 0 2.2 2.2 2.2 5.4v7.4l11 8v3.7l-11-4v7.3l3.3 2.1v2l-5.5-1.6-5.5 1.6v-2l3.3-2.1v-7.3l-11 4v-3.7l11-8V6.6C13.8 3.4 14.5 1.2 16 1.2Z"/></svg>';
+function sampleAgeSeconds(){return sampleTime?Math.max(0,Math.round((Date.now()-sampleTime)/1000)):null;}
+function refreshAgeAndStatus(){
+ const age=sampleAgeSeconds();
+ put("metricUpdated",age===null?"unknown":age<60?age+"s ago":Math.floor(age/60)+"m "+(age%60)+"s ago");
+ put("coverageRadius",radiusNm+" NM query · FlyItalyADSB feed");
+ if(frozen){connection(true,"SNAPSHOT FROZEN");return;}
+ if(updated && age!==null && age>180)connection(false,"DATA DELAYED");
+}
+function setFrozen(next){
+ frozen=Boolean(next);
+ const button=$("freezeButton");
+ button.classList.toggle("frozen",frozen);
+ button.setAttribute("aria-pressed",String(frozen));
+ button.textContent=frozen?"▶ Resume live":"❄ Freeze positions";
+ button.title=frozen?"Positions locked until resumed; zoom will not update them":"Hold current GPS coordinates to diagnose zoom movement";
+ if(frozen){queuedLoad=false;connection(true,"SNAPSHOT FROZEN");}
+ else {load();}
+ refreshAgeAndStatus();
+}
 function renderCounts(){
  const m=aircraft.filter(a=>type(a)==="military").length,g=aircraft.filter(a=>type(a)==="government").length;
  put("totalCount",aircraft.length);put("countAll",aircraft.length);put("countMilitary",m);put("countGovernment",g);
  put("countOther",aircraft.length-m-g);put("metricTracked",aircraft.length);put("metricMil",m);
- put("metricUpdated",updated?Math.max(0,Math.round((Date.now()-updated)/1000))+"s ago":"—");
+ refreshAgeAndStatus();
 }
 function renderList(shown){
  const list=$("aircraftList");list.replaceChildren();put("visibleCount",shown.length);
@@ -226,6 +244,7 @@ function select(code,pan){
 function showError(message){put("errorBanner",message);$("errorBanner").classList.toggle("hidden",!message);}
 function connection(ok,message){$("liveIndicator").classList.toggle("bad",!ok);put("liveLabel",message);}
 async function load(){
+ if(frozen)return;
  if(loading){queuedLoad=true;return;}loading=true;$("refreshButton").disabled=true;connection(true,"UPDATING");
  const [lon,lat]=requestedCenter;
  const query=new URLSearchParams({lat:lat.toFixed(4),lon:lon.toFixed(4),dist:String(radiusNm)});
@@ -237,18 +256,23 @@ async function load(){
   if(!Array.isArray(data.ac))throw Error("Invalid aircraft data: missing ac array");
   const seen=new Set();aircraft=data.ac.filter(a=>{if(!a||!a.hex||seen.has(id(a)))return false;seen.add(id(a));return true;});
   updated=Date.now();
+  const sourceNow=Number(data.now);
+  const receivedAt=Date.parse(data.received_at??"");
+  sampleTime=Number.isFinite(sourceNow)&&sourceNow>1700000000 ? sourceNow*1000
+    : Number.isFinite(receivedAt) ? receivedAt : 0;
   if(selected&&!aircraft.some(a=>id(a)===selected))selected="";
   $("searchAreaButton").classList.add("hidden");
-  showError("");connection(true,"FEED ONLINE");render();
+  showError("");connection(true,"FEED ONLINE");render();refreshAgeAndStatus();
  }catch(e){
   connection(false,"FEED UNAVAILABLE");
   showError("Aircraft feed unavailable: "+(e.name==="AbortError"?"request timed out":e.message)+". Existing results may be stale.");
   if(!aircraft.length)put("listStatus","Unable to load live aircraft. Check the Cloudflare Worker and try Refresh.");
- }finally{loading=false;$("refreshButton").disabled=false;if(queuedLoad){queuedLoad=false;load();}}
+ }finally{loading=false;$("refreshButton").disabled=false;if(queuedLoad&&!frozen){queuedLoad=false;load();}}
 }
 function distanceKm(a,b,c,d){const r=Math.PI/180,z=Math.sin((d-b)*r/2)**2+Math.cos(b*r)*Math.cos(d*r)*Math.sin((c-a)*r/2)**2;return 12742*Math.asin(Math.min(1,Math.sqrt(z)));}
-function searchArea(){const c=map.getCenter();requestedCenter=[c.lng,c.lat];put("mapAreaName","CUSTOM SEARCH AREA");$("searchAreaButton").classList.add("hidden");load();}
+function searchArea(){if(frozen)setFrozen(false);const c=map.getCenter();requestedCenter=[c.lng,c.lat];put("mapAreaName","CUSTOM SEARCH AREA");$("searchAreaButton").classList.add("hidden");load();}
 function activateRegion(regionKey){
+ if(frozen)setFrozen(false);
  const region=REGIONS[regionKey]||REGIONS.qatar;
  requestedCenter=region.center.slice();
  radiusNm=region.radius;
@@ -268,14 +292,20 @@ map.on("moveend",()=>{
 map.on("error",e=>{if(!aircraft.length&&e.error)showError("Map tiles may be temporarily unavailable. Check your network or switch map style.");});
 $("filters").addEventListener("click",e=>{const button=e.target.closest("[data-filter]");if(!button)return;filter=button.dataset.filter;document.querySelectorAll(".filter").forEach(x=>x.classList.toggle("active",x===button));render();});
 $("aircraftSearch").addEventListener("input",e=>{search=e.target.value.trim().toLowerCase();render();});
-$("refreshButton").addEventListener("click",load);$("searchAreaButton").addEventListener("click",searchArea);
+$("refreshButton").addEventListener("click",()=>{if(frozen)setFrozen(false);else load();});
+$("freezeButton").addEventListener("click",()=>setFrozen(!frozen));
+$("searchAreaButton").addEventListener("click",searchArea);
 $("recenterButton").addEventListener("click",()=>activateRegion("qatar"));
 $("regionSelect").addEventListener("change",e=>activateRegion(e.target.value));
 $("styleButton").addEventListener("click",()=>{styleIndex=(styleIndex+1)%STYLES.length;map.setStyle(STYLES[styleIndex]);$("styleButton").title=styleIndex?"Liberty style":"Bright style";});
 $("detailClose").addEventListener("click",()=>{selected="";render();});
 $("sidebarToggle").addEventListener("click",()=>$("sidebar").classList.toggle("is-open"));
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){$("sidebar").classList.remove("is-open");selected="";render();}if(e.key==="/"&&!(e.target instanceof HTMLInputElement)){e.preventDefault();$("aircraftSearch").focus();$("sidebar").classList.add("is-open");}});
-setInterval(()=>{if(document.visibilityState==="visible"){if(!updated||Date.now()-updated>=120000)load();else put("metricUpdated",Math.round((Date.now()-updated)/1000)+"s ago");}},10000);
+setInterval(()=>{
+ if(document.visibilityState!=="visible")return;
+ if(!frozen&&(!updated||Date.now()-updated>=120000))load();
+ else refreshAgeAndStatus();
+},10000);
 map.on("zoomend",layoutLabels);
 map.on("resize",layoutLabels);
 map.on("style.load",installAircraftLayers);
