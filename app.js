@@ -34,7 +34,7 @@ function refreshAgeAndStatus(){
  if(frozen){connection(true,"SNAPSHOT FROZEN");return;}
  if(updated && age!==null && age>180)connection(false,"DATA DELAYED");
 }
-function setFrozen(next){
+function setFrozen(next,autoLoad=true){
  frozen=Boolean(next);
  const button=$("freezeButton");
  button.classList.toggle("frozen",frozen);
@@ -42,7 +42,7 @@ function setFrozen(next){
  button.textContent=frozen?"▶ Resume live":"❄ Freeze positions";
  button.title=frozen?"Positions locked until resumed; zoom will not update them":"Hold current GPS coordinates to diagnose zoom movement";
  if(frozen){queuedLoad=false;connection(true,"SNAPSHOT FROZEN");}
- else {load();}
+ else if(autoLoad){load();}
  refreshAgeAndStatus();
 }
 function renderCounts(){
@@ -254,6 +254,8 @@ async function load(){
   const data=await response.json();
   if(!response.ok)throw Error(String(data.error||"HTTP "+response.status)+(data.upstream_status?" (upstream "+data.upstream_status+")":""));
   if(!Array.isArray(data.ac))throw Error("Invalid aircraft data: missing ac array");
+  // A freeze click may happen during a pending HTTP request. Never mutate a frozen snapshot.
+  if(frozen)return;
   const seen=new Set();aircraft=data.ac.filter(a=>{if(!a||!a.hex||seen.has(id(a)))return false;seen.add(id(a));return true;});
   updated=Date.now();
   const sourceNow=Number(data.now);
@@ -270,9 +272,9 @@ async function load(){
  }finally{loading=false;$("refreshButton").disabled=false;if(queuedLoad&&!frozen){queuedLoad=false;load();}}
 }
 function distanceKm(a,b,c,d){const r=Math.PI/180,z=Math.sin((d-b)*r/2)**2+Math.cos(b*r)*Math.cos(d*r)*Math.sin((c-a)*r/2)**2;return 12742*Math.asin(Math.min(1,Math.sqrt(z)));}
-function searchArea(){if(frozen)setFrozen(false);const c=map.getCenter();requestedCenter=[c.lng,c.lat];put("mapAreaName","CUSTOM SEARCH AREA");$("searchAreaButton").classList.add("hidden");load();}
+function searchArea(){if(frozen)setFrozen(false,false);const c=map.getCenter();requestedCenter=[c.lng,c.lat];put("mapAreaName","CUSTOM SEARCH AREA");$("searchAreaButton").classList.add("hidden");load();}
 function activateRegion(regionKey){
- if(frozen)setFrozen(false);
+ if(frozen)setFrozen(false,false);
  const region=REGIONS[regionKey]||REGIONS.qatar;
  requestedCenter=region.center.slice();
  radiusNm=region.radius;
