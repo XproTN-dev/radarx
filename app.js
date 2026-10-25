@@ -1,12 +1,14 @@
 import * as maplibregl from "https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.mjs";
 import {loadRegistry,registryLookup,aircraftKind,registryStatus} from "./aircraft-registry.js";
 import {observeCounts,aggregateSummary,sparklineSVG} from "./traffic-insights.js";
-import {nextSector,scanMerge,scanError,scanAircraft,scanStatus,clearScan} from "./regional-scan.js";
+import {nextSector,scanMerge,scanMilitary,scanError,scanAircraft,scanStatus,clearScan} from "./regional-scan.js";
 const API = "https://radarx.saifeddinkhmiri.workers.dev";
 const REFRESH_INTERVAL_MS = 5000; // five-second browser polls; Worker TTL remains configured separately // check for updated cached observations about twice per minute
 const HOME = [35,28];
 let regionalMode="mena",bootstrapping=true,lastScanAt=0;
-const REGION_POLL_MS=20000;
+const REGION_POLL_MS=45000;
+const MILITARY_POLL_MS=30000;
+let milAttemptAt=0,milInFlight=false,milDisabledUntil=0,milAvailable=false;
 const REGIONS = {
  mena:{center:[35,28],zoom:3.45,radius:250,label:"GULF + MENA / REGIONAL SCAN"},
  gulf:{center:[51,26.4],zoom:5.2,radius:250,label:"GULF / REGIONAL SCAN"},
@@ -20,12 +22,14 @@ const REGIONS = {
 const STYLES = ["https://tiles.openfreemap.org/styles/bright","https://tiles.openfreemap.org/styles/liberty","https://tiles.openfreemap.org/styles/positron","https://tiles.openfreemap.org/styles/dark"];
 const $ = id => document.getElementById(id);
 const favourites=new Set((()=>{try{return JSON.parse(localStorage.getItem("radarx-fav-v1")||"[]")}catch{return []}})());
-const UI={inView:false,airborne:false,favouritesOnly:false,insights:false};
+const UI={inView:false,airborne:false,favouritesOnly:false,insights:false,includeStale:false};
 let aircraft=[], selected="", filter="all", search="", updated=0, sampleTime=0, lastAttemptAt=0, frozen=false, loading=false, styleIndex=0, requestedCenter=HOME.slice();
 let radiusNm=REGIONS.qatar.radius, queuedLoad=false, suppressAreaPrompt=false;
 const transitions=new Map();
 let animationFrame=0;
-const TRANSITION_MS=1500;
+const TRANSITION_MS=1100;
+let lastMotionFrameAt=0;
+const ANIMATION_INTERVAL_MS=80;
 function pointAt(m,now){
  if(!m)return null;
  const t=Math.min(1,Math.max(0,(now-m.start)/TRANSITION_MS));
@@ -40,7 +44,7 @@ function animate(){
   if(frozen||document.visibilityState!=="visible")return;
   const now=Date.now();
   if([...transitions.values()].some(m=>now<m.start+TRANSITION_MS)){
-   renderMarkers();
+   if(now-lastMotionFrameAt>=ANIMATION_INTERVAL_MS){renderMarkers();lastMotionFrameAt=now;}
    animationFrame=requestAnimationFrame(tick);
   }
  };
@@ -58,7 +62,7 @@ function transitionTo(next){
   const to=[a.lon,a.lat];
   const targetChanged=!prior||Math.hypot(prior.to[0]-to[0],prior.to[1]-to[1])>0.000005;
   const age=Number(a.seen_pos);
-  const move=old&&coord(old)&&targetChanged&&Number.isFinite(age)&&age>=0&&age<=20&&Math.hypot(to[0]-from[0],to[1]-from[1])<0.3;
+  const move=old&&coord(old)&&targetChanged&&Number.isFinite(age)&&age>=0&&age<=20&&!a.__stale&&Math.hypot(to[0]-from[0],to[1]-from[1])<0.3;
   if(move)transitions.set(key,{from,to,start:now});
   else if(targetChanged)transitions.delete(key);
  }
@@ -70,13 +74,14 @@ map.addControl(new maplibregl.AttributionControl({compact:true}),"bottom-right")
 const id=a=>String(a.hex||"").toLowerCase();
 const str=(a,k)=>String(a[k]??"").trim();
 const label=a=>str(a,"flight")||str(a,"r")||str(a,"hex").toUpperCase()||"UNKNOWN";
-const type=a=>aircraftKind(a);
+const type=a=>a.__providerMilitary?"military":aircraftKind(a);
 const coord=a=>Number.isFinite(a.lat)&&Number.isFinite(a.lon)&&Math.abs(a.lat)<=90&&Math.abs(a.lon)<=180;
 const fmt=(n,unit="")=>typeof n==="number"&&Number.isFinite(n)?Math.round(n).toLocaleString("en-US")+unit:"—";
 const altitude=a=>a.alt_baro==="ground"?"ON GROUND":fmt(a.alt_baro," ft");
 const put=(key,value)=>$(key).textContent=value;
 function match(a){
  if(filter!=="all"&&(filter==="milgov"?!["military","government"].includes(type(a)):type(a)!==filter))return false;
+ if(a.__stale&&!UI.includeStale)return false;
  if(UI.airborne&&a.alt_baro==="ground")return false;
  if(UI.favouritesOnly&&!favourites.has(id(a)))return false;
  if(UI.inView&&(!coord(a)||!map.getBounds().contains([a.lon,a.lat])))return false;
@@ -95,9 +100,10 @@ function refreshAgeAndStatus(){
  if(regionalMode==="local")put("scanCoverageText","Local single-area query; no broader regional coverage.");
  if(regionalMode!=="local"){
   const scan=scanStatus(regionalMode);
-  put("coverageRadius",scan.scanned+"/"+scan.totalSectors+" sectors checked · "+scan.aircraft+" unique aircraft · rotating scan");
-  put("metricUpdated",scan.scanned+" / "+scan.totalSectors+" sectors");
-  put("scanCoverageText",scan.scanned+"/"+scan.totalSectors+" sectors sampled; results are staggered, not simultaneous.");
+  put("coverageRadius",scan.freshSectors+"/"+scan.totalSectors+" sectors recently sampled · "+scan.freshAircraft+" recent aircraft");
+  put("metricUpdated",scan.freshSectors+" / "+scan.totalSectors+" fresh");
+  put("scanCoverageText",scan.freshSectors+"/"+scan.totalSectors+" sectors sampled within 90s. "+scan.staleAircraft+" older observations are hidden by default.");
+  put("militaryFeedStatus",milAvailable?"Global military feed connected":Date.now()<milDisabledUntil?"Global military feed not available from Worker":"Checking global military feed…");
   if(frozen){connection(true,"SNAPSHOT FROZEN");return;}
   connection(scan.missing===0,"REGIONAL SCAN");return;
  }
@@ -127,13 +133,14 @@ function setFrozen(next,autoLoad=true){
  refreshAgeAndStatus();
 }
 function renderCounts(){
- const m=aircraft.filter(a=>type(a)==="military").length,g=aircraft.filter(a=>type(a)==="government").length;
- put("totalCount",aircraft.length);put("countAll",aircraft.length);put("countMilitary",m);put("countGovernment",g);
+ const current=aircraft.filter(a=>!a.__stale||UI.includeStale);
+ const m=current.filter(a=>type(a)==="military").length,g=current.filter(a=>type(a)==="government").length;
+ put("totalCount",current.length);put("countAll",current.length);put("countMilitary",m);put("countGovernment",g);
  put("countMilGov",m+g);
  $("classificationCaution").textContent=(m+g)===0
   ? "No military/government aircraft identified in received data. This is not proof of no activity."
   : (m+g)+" identified in received data. Other aircraft may remain unclassified.";
- put("countOther",aircraft.length-m-g);put("metricTracked",aircraft.length);put("metricMil",m);
+ put("countOther",current.length-m-g);put("metricTracked",current.length);put("metricMil",m);
  refreshAgeAndStatus();
 }
 function renderList(shown){
@@ -189,7 +196,7 @@ function drawPlaneIcon(fill) {
 function makeAircraftGeoJSON() {
   const features = [];
   for(const a of aircraft.filter(match)) {
-    if(!coord(a) || (Number.isFinite(Number(a.seen_pos)) && Number(a.seen_pos) > (regionalMode==="local"?90:720)))continue;
+    if(!coord(a)||a.__stale||(typeof a.seen_pos==="number"&&a.seen_pos>90))continue;
     features.push({
       type:"Feature",
       geometry:{type:"Point",coordinates:pointAt(transitions.get(id(a)),Date.now())||[a.lon,a.lat]},
@@ -396,6 +403,30 @@ async function loadRegion(){
   showError("Regional sector "+sector.label+" not available: "+err.message+". Other sectors remain visible.");
  }finally{loading=false;lastScanAt=Date.now();refreshAgeAndStatus();}
 }
+async function refreshMilitary(){
+ if(regionalMode==="local"||frozen||milInFlight||document.visibilityState!=="visible")return;
+ const now=Date.now();
+ if(now<milDisabledUntil||now-milAttemptAt<MILITARY_POLL_MS)return;
+ milAttemptAt=now;milInFlight=true;
+ try{
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+  let res;
+  try{res=await fetch(API+"/v1/mil",{signal:controller.signal,cache:"no-store"});}finally{clearTimeout(timer);}
+  if([404,405,501].includes(res.status)){milDisabledUntil=Date.now()+600000;milAvailable=false;return;}
+  if(res.status===429){milDisabledUntil=Date.now()+120000;return;}
+  if(!res.ok)throw Error("HTTP "+res.status);
+  const payload=await res.json();
+  if(!Array.isArray(payload.ac))throw Error("Invalid military response");
+  if(frozen)return;
+  scanMilitary(payload);
+  milAvailable=true;
+  const next=scanAircraft();
+  transitionTo(next);
+  aircraft=next;
+  render();animate();
+ }catch(e){milAvailable=false;milDisabledUntil=Date.now()+90000;}
+ finally{milInFlight=false;refreshAgeAndStatus();}
+}
 function distanceKm(a,b,c,d){const r=Math.PI/180,z=Math.sin((d-b)*r/2)**2+Math.cos(b*r)*Math.cos(d*r)*Math.sin((c-a)*r/2)**2;return 12742*Math.asin(Math.min(1,Math.sqrt(z)));}
 function searchArea(){if(regionalMode!=="local"){regionalMode="local";bootstrapping=false;$("regionSelect").value="qatar";aircraft=[];transitions.clear();}if(frozen)setFrozen(false,false);const c=map.getCenter();requestedCenter=[c.lng,c.lat];put("mapAreaName","CUSTOM SEARCH AREA");$("searchAreaButton").classList.add("hidden");load();}
 function activateRegion(regionKey){
@@ -422,7 +453,7 @@ map.on("moveend",()=>{
 map.on("error",e=>{if(!aircraft.length&&e.error)showError("Map tiles may be temporarily unavailable. Check your network or switch map style.");});
 $("filters").addEventListener("click",e=>{const button=e.target.closest("[data-filter]");if(!button)return;filter=button.dataset.filter;document.querySelectorAll(".filter").forEach(x=>x.classList.toggle("active",x===button));render();});
 $("aircraftSearch").addEventListener("input",e=>{search=e.target.value.trim().toLowerCase();render();});
-for(const [element,key] of [["inViewOnly","inView"],["airborneOnly","airborne"],["favouritesOnly","favouritesOnly"]]){
+for(const [element,key] of [["inViewOnly","inView"],["airborneOnly","airborne"],["favouritesOnly","favouritesOnly"],["includeStale","includeStale"]]){
  $(element).addEventListener("change",e=>{UI[key]=e.target.checked;render();});
 }
 $("favouriteButton").addEventListener("click",toggleFavourite);
@@ -500,14 +531,16 @@ $("sidebarToggle").addEventListener("click",()=>$("sidebar").classList.toggle("i
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){$("sidebar").classList.remove("is-open");selected="";render();}if(e.key==="/"&&!(e.target instanceof HTMLInputElement)){e.preventDefault();$("aircraftSearch").focus();$("sidebar").classList.add("is-open");}});
 setInterval(()=>{
  if(document.visibilityState!=="visible")return;
- if(!frozen&&Date.now()-Math.max(updated,lastAttemptAt)>=(regionalMode==="local"?REFRESH_INTERVAL_MS:(bootstrapping?2500:REGION_POLL_MS)))load();
+ if(!frozen&&Date.now()-Math.max(updated,lastAttemptAt)>=(regionalMode==="local"?REFRESH_INTERVAL_MS:(bootstrapping?5000:REGION_POLL_MS)))load();
+ if(regionalMode!=="local")refreshMilitary();
  else refreshAgeAndStatus();
 },1000);
 document.addEventListener("visibilitychange",()=>{
  if(document.visibilityState==="hidden")stopAnimation();
  else{
   animate();
-  if(!frozen&&Date.now()-Math.max(updated,lastAttemptAt)>=(regionalMode==="local"?REFRESH_INTERVAL_MS:(bootstrapping?2500:REGION_POLL_MS)))load();
+  if(!frozen&&Date.now()-Math.max(updated,lastAttemptAt)>=(regionalMode==="local"?REFRESH_INTERVAL_MS:(bootstrapping?5000:REGION_POLL_MS)))load();
+ if(regionalMode!=="local")refreshMilitary();
  }
 });
 map.on("zoomend",layoutLabels);
