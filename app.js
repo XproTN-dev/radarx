@@ -9,6 +9,7 @@ let regionalMode="mena",bootstrapping=true,lastScanAt=0;
 const REGION_POLL_MS=45000;
 const MILITARY_POLL_MS=30000;
 let milAttemptAt=0,milInFlight=false,milDisabledUntil=0,milAvailable=false;
+let militaryLastReport={worldwide:null,accepted:null,checkedAt:0,region:null};
 const REGIONS = {
  mena:{center:[35,28],zoom:3.45,radius:250,label:"GULF + MENA / REGIONAL SCAN"},
  gulf:{center:[51,26.4],zoom:5.2,radius:250,label:"GULF / REGIONAL SCAN"},
@@ -97,13 +98,19 @@ function toggleFavourite(){
 function sampleAgeSeconds(){return sampleTime?Math.max(0,Math.round((Date.now()-sampleTime)/1000)):null;}
 function refreshAgeAndStatus(){
  const age=sampleAgeSeconds();
- if(regionalMode==="local")put("scanCoverageText","Local single-area query; no broader regional coverage.");
+ if(regionalMode==="local"){
+  put("scanCoverageText","LOCAL ONLY: one nearby query. Global military network and MENA sectors are not being scanned.");
+  put("militaryFeedStatus","Global military source paused in local search — choose Gulf only or Gulf + MENA.");
+}
  if(regionalMode!=="local"){
   const scan=scanStatus(regionalMode);
   put("coverageRadius",scan.freshSectors+"/"+scan.totalSectors+" sectors recently sampled · "+scan.freshAircraft+" recent aircraft");
   put("metricUpdated",scan.freshSectors+" / "+scan.totalSectors+" fresh");
   put("scanCoverageText",scan.freshSectors+"/"+scan.totalSectors+" sectors sampled within 90s. "+scan.staleAircraft+" older observations are hidden by default.");
-  put("militaryFeedStatus",milAvailable?"Global military feed connected":Date.now()<milDisabledUntil?"Global military feed not available from Worker":"Checking global military feed…");
+  put("militaryFeedStatus",
+   milAvailable
+     ? "Global military feed: "+(militaryLastReport.worldwide??"?")+" worldwide, "+(militaryLastReport.accepted??"?")+" accepted in "+(militaryLastReport.region||regionalMode)+". Last checked "+Math.round((Date.now()-militaryLastReport.checkedAt)/1000)+"s ago."
+     : Date.now()<milDisabledUntil?"Global military feed unavailable / retry pending":"Checking global military feed…");
   if(frozen){connection(true,"SNAPSHOT FROZEN");return;}
   const hasRecentSectors=scan.freshSectors>0;
   const hasRecentMilitary=milAvailable&&scan.militaryFeedAgeSeconds!==null&&scan.militaryFeedAgeSeconds<=90;
@@ -140,7 +147,11 @@ function renderCounts(){
  put("totalCount",current.length);put("countAll",current.length);put("countMilitary",m);put("countGovernment",g);
  put("countMilGov",m+g);
  $("classificationCaution").textContent=(m+g)===0
-  ? (milAvailable?"No military/government matches among current observations. Coverage remains incomplete.":"Global military source not configured. Regional samples alone cannot establish military activity.")
+  ? (regionalMode==="local"
+    ? "Local area only. The global military feed is paused. Select Gulf only or Gulf + MENA to compare."
+    : milAvailable
+      ? "No recent military/government matches within the selected region. Check feed totals above."
+      : "Global military source unavailable. Regional samples alone cannot establish military activity.")
   : (m+g)+" identified in received data. Other aircraft may remain unclassified.";
  put("countOther",current.length-m-g);put("metricTracked",current.length);put("metricMil",m);
  refreshAgeAndStatus();
@@ -422,7 +433,8 @@ async function refreshMilitary(){
   const payload=await res.json();
   if(!Array.isArray(payload.ac))throw Error("Invalid military response");
   if(frozen)return;
-  scanMilitary(payload,Date.now(),regionalMode);
+  const result=scanMilitary(payload,Date.now(),regionalMode);
+  militaryLastReport={worldwide:result.worldwide,accepted:result.accepted,checkedAt:Date.now(),region:regionalMode};
   milAvailable=true;
   const next=scanAircraft();
   transitionTo(next);
@@ -432,7 +444,7 @@ async function refreshMilitary(){
  finally{milInFlight=false;refreshAgeAndStatus();}
 }
 function distanceKm(a,b,c,d){const r=Math.PI/180,z=Math.sin((d-b)*r/2)**2+Math.cos(b*r)*Math.cos(d*r)*Math.sin((c-a)*r/2)**2;return 12742*Math.asin(Math.min(1,Math.sqrt(z)));}
-function searchArea(){if(regionalMode!=="local"){regionalMode="local";bootstrapping=false;$("regionSelect").value="qatar";aircraft=[];transitions.clear();}if(frozen)setFrozen(false,false);const c=map.getCenter();requestedCenter=[c.lng,c.lat];put("mapAreaName","CUSTOM SEARCH AREA");$("searchAreaButton").classList.add("hidden");load();}
+function searchArea(){if(regionalMode!=="local"){regionalMode="local";bootstrapping=false;$("regionSelect").value="custom";aircraft=[];transitions.clear();}if(frozen)setFrozen(false,false);const c=map.getCenter();requestedCenter=[c.lng,c.lat];put("mapAreaName","CUSTOM SEARCH AREA");$("searchAreaButton").classList.add("hidden");load();}
 function activateRegion(regionKey){
  if(frozen)setFrozen(false,false);
  const region=REGIONS[regionKey]||REGIONS.mena;
@@ -528,7 +540,10 @@ $("refreshButton").addEventListener("click",()=>{if(frozen)setFrozen(false);else
 $("freezeButton").addEventListener("click",()=>setFrozen(!frozen));
 $("searchAreaButton").addEventListener("click",searchArea);
 $("recenterButton").addEventListener("click",()=>activateRegion(regionalMode==="local"?"qatar":regionalMode));
-$("regionSelect").addEventListener("change",e=>activateRegion(e.target.value));
+$("regionSelect").addEventListener("change",e=>{
+ if(e.target.value==="custom")searchArea();
+ else activateRegion(e.target.value);
+});
 $("styleButton").addEventListener("click",()=>{styleIndex=(styleIndex+1)%STYLES.length;map.setStyle(STYLES[styleIndex]);$("styleButton").title="Map style: "+["Bright","Liberty","Positron","Dark"][styleIndex];});
 $("detailClose").addEventListener("click",()=>{selected="";render();});
 $("sidebarToggle").addEventListener("click",()=>$("sidebar").classList.toggle("is-open"));
