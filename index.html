@@ -8,7 +8,7 @@
   <title>RadarX — Live Aviation Map</title>
   <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.css">
-  <link rel="stylesheet" href="./style.css?v=0.6.1">
+  <link rel="stylesheet" href="./style.css?v=0.7.0">
 </head>
 <body>
   <header class="topbar">
@@ -32,7 +32,7 @@
       <div class="sidebar-intro">
         <div class="eyebrow">AIRCRAFT MONITOR</div>
         <div class="sidebar-title">Aircraft explorer <span id="totalCount" class="count-pill">—</span></div>
-        <p class="sidebar-subtitle">Public ADS-B observations, checked every 5 seconds. Source caching may add delay; coverage differs from Flightradar24.</p>
+        <p class="sidebar-subtitle">Public ADS-B observations, from recently sampled geographic sectors. MENA-wide results are not simultaneous live coverage.</p>
       </div>
       <div class="searchbox">
         <span class="search-icon">⌕</span>
@@ -40,7 +40,8 @@
         <kbd>/</kbd>
       </div>
       <div class="filter-heading">FILTER BY AIRCRAFT CATEGORY <span class="filter-caption" id="registryState">Checking aircraft IDs…</span></div>
-      <div class="version-note"><strong>RadarX V0.6.1</strong> · Classification depends on available records, not just callsigns.</div>
+      <div class="version-note"><strong>RadarX V0.7.0</strong> · Classification depends on available records, not just callsigns.</div>
+      <div class="source-status" id="militaryFeedStatus" role="status">Dedicated military source: not connected</div>
       <div class="filter-row" id="filters" role="group" aria-label="Aircraft category">
         <button type="button" class="filter active" data-filter="all">All <span id="countAll">0</span></button>
         <button type="button" class="filter" data-filter="milgov">Military + Gov <span id="countMilGov">0</span></button>
@@ -53,13 +54,14 @@
       <div class="filter-extras" role="group" aria-label="Additional filters">
           <label><input type="checkbox" id="inViewOnly"> Visible map only</label>
           <label><input type="checkbox" id="airborneOnly"> Airborne</label>
+          <label><input type="checkbox" id="includeStale"> Include 90–180s old observations</label>
           <label><input type="checkbox" id="favouritesOnly"> <span aria-hidden="true">★</span> Favourites</label>
         </div>
         <div class="list-heading"><span id="listHeading">AIRCRAFT IN CURRENT AREA</span><span id="visibleCount">—</span></div>
       <div id="listStatus" class="list-status" role="status">Connecting to aircraft feed…</div>
       <div id="aircraftList" class="aircraft-list" aria-label="Aircraft results"></div>
       <div class="sidebar-footer">
-        <strong>RADARX / V0.6.1</strong>
+        <strong>RADARX / V0.7.0</strong>
         <span>Military = source-tagged. Government identification awaits verification.</span>
       </div>
     </aside>
@@ -72,7 +74,7 @@
           <div class="map-metrics">
             <span class="metric-primary"><strong id="metricTracked">—</strong> aircraft</span>
             <span><strong id="metricMil">—</strong> military tagged</span>
-            <span class="metric-time"><strong id="metricUpdated">—</strong> source age</span>
+            <span class="metric-time"><strong id="metricUpdated">—</strong> coverage</span>
           </div>
         </div>
         <div id="errorBanner" class="error-banner hidden" role="alert"></div>
@@ -137,6 +139,6 @@
       </section>
     </main>
   </div>
-  <script type="module" src="./app.js?v=0.6.1"></script>
+  <script type="module" src="./app.js?v=0.7.0"></script>
 </body>
 </html>
