@@ -13,7 +13,7 @@ const STYLES = ["https://tiles.openfreemap.org/styles/bright","https://tiles.ope
 const $ = id => document.getElementById(id);
 const knownGovernmentHex = new Set([]); // V0.1: empty until a verifiable government dataset is integrated.
 let aircraft=[], selected="", filter="all", search="", updated=0, loading=false, styleIndex=0, requestedCenter=HOME.slice();
-let markers=new Map(), radiusNm=REGIONS.qatar.radius, queuedLoad=false;
+let markers=new Map(), radiusNm=REGIONS.qatar.radius, queuedLoad=false, suppressAreaPrompt=false;
 const map=new maplibregl.Map({container:"map",style:STYLES[0],center:HOME,zoom:7.25,minZoom:3.6,maxZoom:16,attributionControl:false});
 map.addControl(new maplibregl.NavigationControl({showCompass:false}),"bottom-right");
 map.addControl(new maplibregl.AttributionControl({compact:true}),"bottom-right");
@@ -75,6 +75,33 @@ function renderMarkers(shown){
  }
  for(const [code,x] of markers)if(!ids.has(code)){x.marker.remove();markers.delete(code);}
 }
+/* Display labels selectively, preventing overlapping callsigns at high zoom. */
+function layoutLabels(){
+ const zoom=map.getZoom();
+ const entries=[...markers.entries()];
+ for(const [,entry] of entries)entry.el.classList.remove("show-label");
+ if(zoom<8.3)return;
+ const prioritized=entries.map(([code,entry])=>{
+  const a=aircraft.find(item=>id(item)===code);
+  return {code,entry,a,priority:code===selected?0:a&&type(a)==="military"?1:2};
+ }).filter(x=>x.a&&coord(x.a)).sort((a,b)=>a.priority-b.priority);
+ const width=map.getContainer().clientWidth, height=map.getContainer().clientHeight;
+ const placed=[];
+ for(const item of prioritized){
+  const p=map.project([item.a.lon,item.a.lat]);
+  const title=label(item.a);
+  const w=Math.min(132,Math.max(35,title.length*7+12));
+  const box={left:p.x-w/2-4,right:p.x+w/2+4,top:p.y+18,bottom:p.y+43};
+  // The top-left status card and right controls have priority over callsigns.
+  if(box.left<8||box.right>width-8||box.top<8||box.bottom>height-20)continue;
+  if(box.top<87&&box.left<375)continue;
+  if(box.top<105&&box.right>width-165)continue;
+  const overlaps=placed.some(other=>box.left<other.right&&box.right>other.left&&box.top<other.bottom&&box.bottom>other.top);
+  if(overlaps&&item.priority!==0)continue;
+  item.entry.el.classList.add("show-label");
+  placed.push(box);
+ }
+}
 function renderDetails(){
  const a=aircraft.find(x=>id(x)===selected);
  $("detailPanel").classList.toggle("hidden",!a);if(!a)return;
@@ -88,10 +115,10 @@ function renderDetails(){
  put("detailMethod",str(a,"type")||"Unspecified");
  put("detailConfidence",type(a)==="military"?"Provider military database flag":type(a)==="government"?"Verified curated identity":"No special identity verified");
 }
-function render(){const shown=aircraft.filter(match);renderCounts();renderList(shown);renderMarkers(shown);renderDetails();}
+function render(){const shown=aircraft.filter(match);renderCounts();renderList(shown);renderMarkers(shown);renderDetails();layoutLabels();}
 function select(code,pan){
  selected=code;render();const a=aircraft.find(x=>id(x)===code);
- if(pan&&a&&coord(a))map.flyTo({center:[a.lon,a.lat],zoom:Math.max(map.getZoom(),7.5),speed:1.3});
+ if(pan&&a&&coord(a)){suppressAreaPrompt=true;$("searchAreaButton").classList.add("hidden");map.flyTo({center:[a.lon,a.lat],zoom:Math.max(map.getZoom(),7.5),speed:1.3});}
  $("sidebar").classList.remove("is-open");
 }
 function showError(message){put("errorBanner",message);$("errorBanner").classList.toggle("hidden",!message);}
@@ -127,10 +154,15 @@ function activateRegion(regionKey){
  put("mapAreaName",region.label);
  $("regionSelect").value=regionKey;
  $("searchAreaButton").classList.add("hidden");
- map.flyTo({center:region.center,zoom:region.zoom,speed:1.4,essential:true});
+ suppressAreaPrompt=true;map.flyTo({center:region.center,zoom:region.zoom,speed:1.4,essential:true});
  load();
 }
-map.on("moveend",()=>{const c=map.getCenter();$("searchAreaButton").classList.toggle("hidden",distanceKm(c.lng,c.lat,requestedCenter[0],requestedCenter[1])<35);});
+map.on("moveend",()=>{
+ layoutLabels();
+ if(suppressAreaPrompt){suppressAreaPrompt=false;return;}
+ const c=map.getCenter();
+ $("searchAreaButton").classList.toggle("hidden",distanceKm(c.lng,c.lat,requestedCenter[0],requestedCenter[1])<35);
+});
 map.on("error",e=>{if(!aircraft.length&&e.error)showError("Map tiles may be temporarily unavailable. Check your network or switch map style.");});
 $("filters").addEventListener("click",e=>{const button=e.target.closest("[data-filter]");if(!button)return;filter=button.dataset.filter;document.querySelectorAll(".filter").forEach(x=>x.classList.toggle("active",x===button));render();});
 $("aircraftSearch").addEventListener("input",e=>{search=e.target.value.trim().toLowerCase();render();});
@@ -142,5 +174,6 @@ $("detailClose").addEventListener("click",()=>{selected="";render();});
 $("sidebarToggle").addEventListener("click",()=>$("sidebar").classList.toggle("is-open"));
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){$("sidebar").classList.remove("is-open");selected="";render();}if(e.key==="/"&&!(e.target instanceof HTMLInputElement)){e.preventDefault();$("aircraftSearch").focus();$("sidebar").classList.add("is-open");}});
 setInterval(()=>{if(document.visibilityState==="visible"){if(!updated||Date.now()-updated>=120000)load();else put("metricUpdated",Math.round((Date.now()-updated)/1000)+"s ago");}},10000);
-map.on("zoomend",()=>$("map").parentElement.classList.toggle("labels-on",map.getZoom()>=8.1));
+map.on("zoomend",layoutLabels);
+map.on("resize",layoutLabels);
 map.on("load",()=>{map.resize();load();});
