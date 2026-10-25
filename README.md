@@ -2,7 +2,7 @@
 
 RadarX is a free browser-based aircraft map, designed with a light aviation-radar layout. It is an independent app and does not copy Flightradar24 branding or proprietary code.
 
-## V0.4 capabilities
+## V0.5 capabilities
 - Qatar-centered closer default map (7.25 zoom), redesigned compact navigation and controls, and OpenFreeMap Bright via MapLibre GL JS
 - Quick switcher for Qatar, Bahrain, UAE, Kuwait, Oman and eastern Saudi Arabia
 - Public aircraft observations from FlyItalyADSB via a Cloudflare Worker
@@ -69,3 +69,27 @@ Aircraft positions are now rendered with MapLibre GL JS native GeoJSON symbol la
 - Aircraft **screen pixels** necessarily move when zooming a geographically anchored map. Their reported **latitude/longitude** and position relative to the coastline should stay fixed during Freeze mode.
 - A position can jump when a new cached sample is received after resuming; smoother interpolation is not yet implemented.
 - API keys remain stored as Cloudflare secrets; never expose them in GitHub.
+
+## V0.5 changes (October 25, 2026)
+- Community aircraft reference lookup from SDR Enthusiasts' Plane Alert DB, ODbL 1.0, via browser-accessible raw CSV.
+- Enriched operator/category labels where the community registry contains a matching ICAO identifier; these are not independently verified.
+- Persistent browser-only favourites and supplementary airborne, visible-map and favourites filters.
+- Four OpenFreeMap basemap styles: Bright, Liberty, Positron, Dark.
+- Aggregate aircraft-count mini chart for observations during the current browser session (not archived traffic history).
+- Added separate radarx code-check workflow for JavaScript syntax and web asset references.
+- All features preserve the existing Cloudflare worker URL and never expose the private FlyItalyADSB API key.
+- The real browser runtime, CSV availability, and new controls still require visual and functional testing.
+
+## Not yet delivered
+- FlyItalyADSB historical aircraft API access and full historical playback. The existing Cloudflare Worker supports only the nearby-aircraft endpoint.
+- Shared backend rate limiting/usage monitoring. GitHub Pages cannot update Cloudflare Worker code.
+- Multi-provider deduplication; access to additional approved data feeds must be arranged separately.
+- Aircraft photographs: embedding photos requires permission; linkouts should be checked before integration.
+- Query-boundary overlay and airports: planned but not in this version.
+- End-to-end browser/mobile acceptance testing and true Flightradar24 data parity.
+
+## Data and licensing
+- Aircraft positions: FlyItalyADSB, CC BY-SA 4.0; show source attribution and honor the API plan.
+- Aircraft classifications: plane-alert-db contributors, ODbL 1.0; community classifications may be outdated or inaccurate.
+- The community registry is fetched directly in the browser, so it may be unavailable on networks that restrict GitHub raw content.
+- RadarX is not a comprehensive real-time airspace surveillance system.
