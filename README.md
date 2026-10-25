@@ -1,46 +1,68 @@
-# RadarX V0.6 — Gulf + MENA regional aviation map
+# RadarX V0.7 — Gulf and MENA aviation observations
 
-RadarX is a browser-only flight observation map hosted on GitHub Pages. Public ADS-B observations are obtained through the existing Cloudflare Worker at https://radarx.saifeddinkhmiri.workers.dev. This is an independent aviation tool, not a copy of Flightradar24's tracking network.
+RadarX is a browser-only GitHub Pages aircraft observation map using a Cloudflare Worker for the FlyItalyADSB REST API. It is **not** a complete real-time military radar or a replication of Flightradar24's network.
 
-## Default geographic coverage
-- **Gulf + MENA is the default**, not Doha.
-- **16 geographically distributed sectors** cover portions of Morocco, Algeria, Tunisia, Libya, Egypt, the Levant, Turkey, Iraq, Iran, Saudi Arabia, Yemen, Oman, the UAE, Bahrain, Qatar and Kuwait.
-- Every sector uses an individual **250 nautical mile** radius request (approximately 463 km, under the free plan's maximum 500 km radius). The regions are sampled sequentially, NOT simultaneously.
-- The initial sector bootstrap runs in short intervals until all 16 have been requested. Subsequent requests rotate sectors roughly every 20 seconds while the page is visible, subject to network availability. A complete update cycle is therefore over five minutes.
-- Reported aircraft are merged by their ICAO hex IDs; the most recent observed position is retained and snapshots expire after 12 minutes.
-- **This does not provide uninterrupted or complete geographic coverage.** There are gaps between circles, and coverage depends on the provider's ADS-B receiver network. An absent aircraft does not prove absence from the sky.
-- Switching to **Gulf only** scans the nine Gulf-focused sectors. Choosing Qatar or another named region switches to a local search. The Search this area button also switches to a local query.
-- Regional mode shows scan-sector progress, not a single global feed timestamp. These data are time-staggered; aircraft positions can be several minutes old.
+## Important fixes in V0.7
 
-## Data classifications
-- Provider dbFlags and SDR Enthusiasts' community Plane Alert DB contribute military and government classifications.
-- Entries are best-effort, may be outdated or erroneous, and are not guaranteed verified.
-- Other means **other or unclassified**, not necessarily confirmed civilian.
-- Military + Gov filter allows an approximate comparison with FR24's category, but the feeds and coverage will not match automatically.
+**The previous V0.6 map was misleading.** It combined geographic snapshots up to 12 minutes old and rendered them as if they were all current. V0.7 now:
 
-## Interface
-- MapLibre with OpenFreeMap; browser-only, zero installation.
-- Filter panel, source-age and diagnostic report, favourites, four themes, responsive styles, region selectors and session traffic summaries.
-- Client-side transitions connect newly observed positions without generating additional API calls.
-- Freeze positions prevents new snapshot updates from changing the map.
-- Queries are scoped to the user's selected scanning mode.
+- Treats aircraft positions no more than **90 seconds old** as recent.
+- Holds 90–180-second positions only as optional grey **stale** records; they are excluded by default.
+- Expires records after 180 seconds, deduplicates by ICAO hex, and retains only the newest position from overlapping sectors.
+- Shows the number of sectors sampled **within 90 seconds**, not only how many sectors have ever been visited.
+- Refreshes UI positions periodically even if no new regional response arrives, so expired records disappear.
+- Limits map animation to approximately 12 FPS rather than rewriting the map source every browser frame.
+- Scans the geographic sectors more conservatively after initial sampling, protecting the limited free API quota.
+- Does not label a count of zero known military aircraft as proof of no military flights.
 
-## Free API quota caution
-- FlyItalyADSB free API limits apply from October 27, 2026: 30 requests/minute and 300,000/month per key; 500 km maximum request radius.
-- Regional rotation at one request per 20 seconds is about 129,600 upstream requests/month for a continuously active single viewer if none are served from cache. More users or multiple edge caches increase use; limits can be reached.
-- Bootstrapping has a faster cadence and must not be repeated frequently. Add global Worker rate limits, shared cache strategy and usage counters before scaling beyond limited testing.
-- The Worker is managed separately and is NOT changed by GitHub commits. Existing configured Worker TTL is reported by the operator as 10 seconds. Individual sector polling periods are much longer than this.
-- Do not expose API secrets in GitHub Pages.
+**Consequence:** after these corrections, the number of aircraft displayed in regional mode can become substantially smaller. That is more honest than plotting stale positions as live.
 
-## Limitations and next production tasks
-- Browser runtime validation and QA of the v0.6 regional scan
-- Cloudflare quota guard / origin-specific request throttling
-- More comprehensive regional grid and scheduling strategies constrained by quota
-- Provider-specific military endpoint and sources only with proper authentication, attribution and usage permissions
-- Proper historical playback, aircraft-type icons and travel routes if authorized data become available
+## Dedicated military source (requires a one-time Cloudflare update)
 
-## Publish
-GitHub Pages → deploy branch `main` from repository root: https://xprotn-dev.github.io/radarx/
+FlyItalyADSB publishes a documented worldwide endpoint `GET /v2/mil` for currently tracked military-tagged aircraft. The source is based on its receiver network and **cannot see aircraft that are not in that network**.
 
-## Credits
-FlyItalyADSB aircraft data (CC BY-SA 4.0), OpenFreeMap / © OpenMapTiles and © OpenStreetMap contributors, MapLibre, and SDR Enthusiasts Plane Alert DB community classifications (ODbL 1.0).
+RadarX V0.7 prepares a `GET /v1/mil` browser API endpoint, but the existing Cloudflare Worker does not support it until you deploy the companion Worker script:
+
+1. In GitHub open **cloudflare-worker-v2.js**.
+2. Copy the entire file as text; do not download or install anything.
+3. Cloudflare dashboard → Workers & Pages → **radarx** → **Edit code**.
+4. Replace the old Worker script with the new one and click **Deploy**.
+5. Confirm the existing secret **FLYITALY_API_KEY** remains configured in Cloudflare. Never paste the secret into GitHub.
+6. Visit `https://radarx.saifeddinkhmiri.workers.dev/v1/status` and confirm `version: worker-v2`. Then open `https://radarx.saifeddinkhmiri.workers.dev/v1/mil` and check for a JSON response with an `ac` array.
+7. Reload RadarX at `https://xprotn-dev.github.io/radarx/` using Ctrl+Shift+R. The UI should say **Global military feed connected** when the Worker route responds.
+
+The Worker preserves `/v1/near`, includes `/v1/mil`, and applies **10 seconds** cache to local nearby searches and **30 seconds** to the global military endpoint. It does not guarantee a single globally shared cache across Cloudflare edge locations, and it does **not** implement a globally synchronized rate limiter.
+
+The client checks military snapshots no more often than once every 30 seconds while visible and scans ordinary geographic sectors at a lower cadence. Local area mode continues using the regional `/v1/near` endpoint.
+
+### API budget and coverage
+
+The announced free plan starts 27 October 2026 with **30 upstream requests per minute**, **300,000 per month**, and **500 km maximum radius**. Each geographic request uses **250 nautical miles** (~463 km), under that limit. Multiple viewers and Cloudflare edge sites can exceed the provider quota. This remains a personal prototype unless a globally rate-limited backend and usage monitoring are deployed.
+
+The military endpoint may contain aircraft outside Gulf/MENA; the frontend clips its military results to broad MENA coordinates (longitude −18 to 65, latitude 12 to 44), or to a narrower Gulf box in Gulf mode. These bounding boxes are approximate, not official political borders.
+
+## Geographic coverage
+
+- **Gulf + MENA** is the default map region.
+- 16 radius sectors survey the Middle East, North Africa, Turkey and Iran.
+- **Gulf only** uses 9 Gulf-focused radius sectors.
+- This sequential polling is a **regional survey**, not a simultaneous MENA-wide aircraft snapshot. It contains gaps and older sector timestamps.
+- The dedicated global military endpoint helps identify more *observed* military-tagged aircraft, but cannot fill receiver gaps or duplicate Flightradar24's database.
+
+## Aircraft identity and licensing
+
+- Live source: FlyItalyADSB (CC BY-SA 4.0).
+- Aircraft classifications: provider `dbFlags`, global `/mil` source flag when enabled, plus SDR Enthusiasts' Plane Alert DB (ODbL 1.0).
+- Classification is community-derived or provider-tagged, not a verified assertion about passengers, owners, mission or identity.
+- Map uses MapLibre, OpenFreeMap / OpenMapTiles and OpenStreetMap contributors.
+
+## Remaining limitations
+
+- Browser visual QA is still needed for the current deployment. JS syntax and unit tests do not prove real-world network coverage or rendering accuracy.
+- Airport departure/arrival routes, aircraft photography, cross-provider matching, and true worldwide civilian live positions are not in the available free aircraft feed.
+- Cloudflare Worker must be pasted/deployed by the Cloudflare account owner; changes pushed to GitHub are not deployed to Cloudflare.
+- For production use, implement a single shared regional data store, quota accounting and global rate limiting rather than independent browser sampling.
+
+Repository: https://github.com/XproTN-dev/radarx
+
+Published website: https://xprotn-dev.github.io/radarx/
