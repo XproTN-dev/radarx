@@ -61,11 +61,20 @@ export function scanMerge(sector,payload,time=Date.now()){
  prune(time);
  return {sector:sector.label,seen:valid,total:scanAircraft(time).length};
 }
-export function scanMilitary(payload,time=Date.now()){
+export function scanMilitary(payload,time=Date.now(),mode="mena"){
  if(!Array.isArray(payload?.ac))throw Error("Invalid military response");
  const stamp=sourceTime(payload,time);
  let accepted=0;
- for(const record of payload.ac)if(absorb(military,record,time,"military-feed",stamp))accepted++;
+ for(const record of payload.ac){
+  if(!validCoord(record))continue;
+  // Broad MENA bounding box, or the Gulf subregion. Global military endpoint
+  // is global, but the map must not show out-of-region aircraft.
+  const inside=mode==="gulf"
+    ? record.lat>=15&&record.lat<=37&&record.lon>=40&&record.lon<=65
+    : record.lat>=12&&record.lat<=44&&record.lon>=-18&&record.lon<=65;
+  if(!inside)continue;
+  if(absorb(military,record,time,"military-feed",stamp))accepted++;
+ }
  militaryCheckedAt=time;
  prune(time);
  return {accepted,worldwide:payload.ac.length};
