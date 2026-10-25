@@ -2,14 +2,16 @@
 
 RadarX is a free browser-based aircraft map, designed with a light aviation-radar layout. It is an independent app and does not copy Flightradar24 branding or proprietary code.
 
-## V0.1 capabilities
-- Light map using MapLibre GL JS and OpenFreeMap Bright
+## V0.2 capabilities
+- Qatar-centered closer default map (7.25 zoom), redesigned compact navigation and controls, and OpenFreeMap Bright via MapLibre GL JS
+- Quick switcher for Qatar, Bahrain, UAE, Kuwait, Oman and eastern Saudi Arabia
 - Public aircraft observations from FlyItalyADSB via a Cloudflare Worker
 - Rotating plane symbols, aircraft list, filtering, search, details, and mobile interface
 - Military aircraft identified via the source's dbFlags military bit
 - Government filter is intentionally empty until independently verified identities are incorporated
 - Positions can be incomplete or delayed. Other/unverified is not equivalent to confirmed civilian.
-- Query around Doha by default (180 nautical miles). Pan and use Search this area to look elsewhere.
+- Query around Doha by default (180 nautical miles), switching regions changes the query center. Pan and use Search this area to look elsewhere.
+- Large-scale zoomed-out maps may show aircraft clustered near one longitude because the live feed only covers a small geographic radius; zoom in or select a region to inspect them. This is expected geographic compression, not global coverage.
 - Aircraft are refreshed every two minutes while the page is open and visible; source/relay caching can delay updates further.
 - All values and displays are observations, not a primary radar picture.
 
@@ -35,6 +37,12 @@ The current Cloudflare Worker is shared publicly. Before inviting large numbers 
 Aircraft data: FlyItalyADSB (https://flyitalyadsb.com/) — CC BY-SA 4.0.
 Map tiles: OpenFreeMap © OpenMapTiles, map data © OpenStreetMap contributors.
 Rendering: MapLibre GL JS.
+
+## Design and usage notes
+- Select a region from the top bar. The selected region controls what is fetched; panning alone does not incur additional API calls until Search this area is pressed.
+- A flight marker can be selected to see details; the Reset view button returns to Qatar at a closer zoom.
+- The sidebar is collapsible on phones; use the menu icon.
+- Labels appear on a more detailed desktop zoom to avoid clutter.
 
 ## Important limitations
 - The data is not all aircraft and cannot establish that an aircraft is absent from a region.
