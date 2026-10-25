@@ -8,7 +8,7 @@
   <title>RadarX — Live Aviation Map</title>
   <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.css">
-  <link rel="stylesheet" href="./style.css?v=0.7.0">
+  <link rel="stylesheet" href="./style.css?v=0.7.1">
 </head>
 <body>
   <header class="topbar">
@@ -19,7 +19,7 @@
       <span class="brand-caption">AVIATION INTELLIGENCE</span>
     </div>
     <div class="top-actions">
-      <label class="region-control" for="regionSelect"><span>QUICK REGION</span><select id="regionSelect" aria-label="Choose region"><option value="mena" selected>Gulf + MENA</option><option value="gulf">Gulf only</option><option value="qatar">Qatar / Doha (local)</option><option value="bahrain">Bahrain</option><option value="uae">United Arab Emirates</option><option value="kuwait">Kuwait</option><option value="oman">Oman</option><option value="saudi">Eastern Saudi Arabia</option></select></label>
+      <label class="region-control" for="regionSelect"><span>QUICK REGION</span><select id="regionSelect" aria-label="Choose region"><option value="mena" selected>Gulf + MENA</option><option value="gulf">Gulf only</option><option value="custom">Custom area (local only)</option><option value="qatar">Qatar / Doha (local)</option><option value="bahrain">Bahrain</option><option value="uae">United Arab Emirates</option><option value="kuwait">Kuwait</option><option value="oman">Oman</option><option value="saudi">Eastern Saudi Arabia</option></select></label>
       <span class="live-indicator" id="liveIndicator"><span class="live-dot"></span><span id="liveLabel">CONNECTING</span></span>
       <button class="top-button" type="button" id="insightsButton" title="Observed traffic statistics">▥ <span>Insights</span></button>
       <button class="top-button freeze-button" id="freezeButton" type="button" aria-pressed="false" title="Lock current coordinates while zooming">❄ Freeze positions</button>
@@ -40,7 +40,7 @@
         <kbd>/</kbd>
       </div>
       <div class="filter-heading">FILTER BY AIRCRAFT CATEGORY <span class="filter-caption" id="registryState">Checking aircraft IDs…</span></div>
-      <div class="version-note"><strong>RadarX V0.7.0</strong> · Classification depends on available records, not just callsigns.</div>
+      <div class="version-note"><strong>RadarX V0.7.1</strong> · Classification depends on available records, not just callsigns.</div>
       <div class="source-status" id="militaryFeedStatus" role="status">Dedicated military source: not connected</div>
       <div class="filter-row" id="filters" role="group" aria-label="Aircraft category">
         <button type="button" class="filter active" data-filter="all">All <span id="countAll">0</span></button>
@@ -61,7 +61,7 @@
       <div id="listStatus" class="list-status" role="status">Connecting to aircraft feed…</div>
       <div id="aircraftList" class="aircraft-list" aria-label="Aircraft results"></div>
       <div class="sidebar-footer">
-        <strong>RADARX / V0.7.0</strong>
+        <strong>RADARX / V0.7.1</strong>
         <span>Military = source-tagged. Government identification awaits verification.</span>
       </div>
     </aside>
@@ -83,7 +83,7 @@
         <button class="floating-button" id="styleButton" type="button" title="Switch between bright and alternate light map">◫ <span>Map layers</span></button>
         <button class="floating-button" id="recenterButton" type="button" title="Return to Qatar / Doha">⌖ <span>Reset view</span></button>
       </div>
-      <button id="searchAreaButton" class="search-area hidden" type="button">⌖ Search this area</button>
+      <button id="searchAreaButton" class="search-area hidden" type="button">⌖ Switch to local-only search</button>
       <div class="map-bottom-left">
         <div class="legend"><span class="legend-label">AIRCRAFT</span><span><i class="legend-dot civilian"></i>Other / unverified</span><span><i class="legend-dot military"></i>Military-tagged</span><span><i class="legend-dot government"></i>Government (community)</span></div>
         <div class="scan-coverage" id="scanCoverageText" role="status">Loading regional coverage…</div><div class="age-note"><span id="coverageRadius">250 NM query · FlyItalyADSB feed</span>. Only observed positions are plotted; not all flights appear.</div>
@@ -139,6 +139,6 @@
       </section>
     </main>
   </div>
-  <script type="module" src="./app.js?v=0.7.0"></script>
+  <script type="module" src="./app.js?v=0.7.1"></script>
 </body>
 </html>
