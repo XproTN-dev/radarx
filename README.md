@@ -52,3 +52,11 @@ Rendering: MapLibre GL JS.
 
 ## V0.3 rendering fix (2026-10-25)
 Aircraft positions are now rendered with MapLibre GL JS native GeoJSON symbol layers. Prior versions rendered aircraft using MapLibre DOM Markers, which were reported to drift visually while zooming. The aircraft symbols and callsigns are pinned to the map engine's geographic projection; symbols are restored whenever a base map style is changed. Reload the site to fetch the new app.js?v=0.3.0.
+
+## V0.3.1 stability diagnostic (October 25, 2026)
+- Aircraft icon size is fixed rather than interpolated with zoom; map bearing and pitch are locked to a flat north-up map.
+- Selecting a plane shows a separate blue geographic anchor ring drawn from the same GeoJSON point by MapLibre's circle renderer, enabling an exact visual check for relative movement.
+- The aircraft detail panel shows received GPS latitude and longitude. Coordinates stay unchanged while zooming unless new API observations arrive.
+- Refreshing is still on a 120-second interval while the tab is visible, so real movement can occur when new data arrives. Zoom events do not fetch aircraft data.
+- A geographic point legitimately changes its position in screen pixels when the map zooms or pans; it must not change which ground coordinate it is attached to.
+- User's latest supplied recording was only 34x34 pixels when decoded, so independent visual confirmation of the reported drift was not possible from it.
