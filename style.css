@@ -10,3 +10,50 @@
 .mobile-only{display:none}
 @media(max-width:1150px){.sidebar{width:310px;min-width:310px}.brand-caption{display:none}.map-summary{min-width:275px}.map-metrics{gap:10px}.detail-panel{width:310px}}
 @media(max-width:760px){.topbar{height:54px;padding:0 11px}.workspace{height:calc(100dvh - 54px)}.mobile-only{display:inline-flex}.icon-button{background:transparent;border:0;color:#fff;font-size:21px;padding:3px 7px}.brand{gap:7px}.logo{height:28px;width:28px}.brandname{font-size:21px}.top-region{display:none}.top-actions{gap:10px}.top-button{padding:6px 9px}.top-button span{display:none}.top-actions .live-indicator{font-size:10px}.sidebar{position:absolute;top:54px;bottom:0;left:0;width:min(89vw,345px);min-width:0;transform:translateX(-104%);transition:transform .22s ease;z-index:23}.sidebar.is-open{transform:translateX(0)}.map-top-left{top:12px;left:10px;max-width:calc(100% - 80px)}.map-summary{padding:10px 12px;min-width:0}.map-summary-heading{font-size:9px;letter-spacing:.5px;white-space:nowrap}.map-metrics{font-size:10px;gap:8px;flex-wrap:wrap}.map-metrics strong{font-size:12px}.map-top-right{top:12px;right:10px}.floating-button{font-size:18px;padding:7px 10px}.floating-button span{display:none}.search-area{top:97px}.detail-panel{right:9px;left:9px;top:auto;bottom:22px;max-height:67%;width:auto;border-radius:15px}.map-bottom-left{bottom:53px;left:8px;right:8px;max-width:none}.legend{gap:8px;font-size:9px;padding:8px}.age-note{font-size:9px}.map-bottom-right{bottom:3px;right:6px;font-size:9px}}
+
+
+/* RADARX V0.2 — light aviation-console refinement */
+:root{color:#182f45;background:#bcd8e8}
+.topbar{height:56px;padding:0 21px;background:linear-gradient(95deg,#087dcc 0%,#137fce 58%,#1486d1 100%);border-bottom:1px solid #277fc2;box-shadow:0 2px 9px #24527824}
+.workspace{height:calc(100dvh - 56px)}
+.logo{width:30px;height:30px;border-color:#d9f5ff}.brandname{font-size:23px;letter-spacing:-1.2px}
+.brand-caption{font-size:9px;letter-spacing:1.4px}
+.region-control{display:flex;align-items:center;gap:9px;font-size:10px;font-weight:800;letter-spacing:.6px;color:#d5ecfe}
+.region-control select{appearance:none;-webkit-appearance:none;border:1px solid #ffffff4a;color:#fff;font-size:12px;font-weight:750;border-radius:7px;padding:8px 29px 8px 12px;min-width:162px;outline:none;background-color:#ffffff21;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='m1 1 5 5 5-5' stroke='%23ffffff' stroke-width='1.6' fill='none'/%3E%3C/svg%3E");background-position:right 11px center;background-repeat:no-repeat}
+.region-control option{background:#fff;color:#24384d}
+.top-actions{gap:15px}.top-button{padding:8px 11px;border-radius:6px}.live-indicator{font-size:10px;letter-spacing:.8px}
+.sidebar{width:315px;min-width:315px;box-shadow:3px 0 12px #2c455c19;border-right:1px solid #dce7f0}
+.sidebar-intro{padding:21px 17px 12px}.eyebrow{color:#7e94ac;letter-spacing:1.65px}.sidebar-title{font-size:20px;margin-top:7px;letter-spacing:-.7px}
+.sidebar-subtitle{line-height:1.4;font-size:11px;margin-top:6px;color:#72869a}
+.count-pill{border-radius:5px;font-size:12px;padding:3px 7px;background:#e1f2ff}
+.searchbox{height:43px;margin:8px 16px 17px;border-radius:6px;background:#f7fafc;border-color:#d8e3ec}
+.filter-heading{margin:0 16px 10px;display:flex;justify-content:space-between;align-items:center;gap:5px}
+.filter-caption{letter-spacing:.3px;font-size:9px;font-weight:650;color:#9cabba}
+.filter-row{padding:0 16px 19px;gap:6px}
+.filter{border-radius:6px;padding:9px 10px;font-size:12px}
+.filter.active{border-color:#0983d9;background:#eaf6ff;box-shadow:inset 3px 0 0 #0786d9}
+.list-heading{padding:14px 17px 11px;background:#f8fbfe;color:#73889a;border-top:1px solid #e6ecf2;letter-spacing:.8px}
+.aircraft-list{background:#fff}.plane-row{padding:12px 16px;gap:12px;min-height:70px;transition:background .13s ease}
+.plane-row.selected{padding-left:13px}.row-icon{font-size:25px;width:27px;transform:rotate(-45deg)}.row-title{font-size:14px;color:#173247}.row-sub{font-size:10px;margin-top:4px;color:#8293a4}.row-side{font-size:10px}
+.row-side strong{font-size:12px}.sidebar-footer{padding:10px 16px 12px;background:#f7fafc}.sidebar-footer span{font-size:9px}
+.map-panel{background:#b0d4e6}.map-summary{min-width:0;border:1px solid #fff;background:#fffffff0;border-radius:7px;padding:11px 14px;box-shadow:0 2px 12px #36658920}
+.map-top-left{top:13px;left:15px;max-width:calc(100% - 245px)}
+.map-summary-heading{font-size:10px;letter-spacing:1px;color:#2a6e9f}
+.map-metrics{gap:14px;margin-top:6px;align-items:center}
+.map-metrics strong{font-size:14px;color:#1a405e}.metric-primary strong{color:#027fc9}
+.map-metrics .metric-time strong{font-size:12px;font-weight:800}
+.map-top-right{top:13px;right:14px;gap:7px}
+.floating-button{font-size:11px;padding:10px 13px;border-radius:6px;box-shadow:0 2px 9px #2b55791f}
+.search-area{top:83px;font-size:11px;background:#fff;color:#087cc8;border:1px solid #abd8f5;box-shadow:0 4px 15px #3577aa38;padding:10px 16px}
+.map-bottom-left{bottom:27px;left:15px}.legend{padding:8px 12px;box-shadow:0 1px 9px #3957711c;font-size:10px}.age-note{font-size:10px}
+.map-bottom-right{bottom:3px;font-size:9px;background:#ffffffc9}
+.detail-panel{top:98px;right:14px;width:319px;max-height:calc(100% - 147px);border-radius:9px;box-shadow:0 8px 35px #0b34544d}
+.detail-head{padding:19px 18px 13px}.detail-head h2{font-size:25px}.detail-hero{min-height:82px;margin:0 13px 13px}.large-plane{font-size:48px}.detail-grid{margin:0 14px 11px;gap:7px}.detail-grid>div{padding:9px}.detail-grid strong{font-size:14px}
+.aircraft-marker{width:30px;height:32px;filter:drop-shadow(0 1px 0 #fff)}
+.aircraft-marker .plane-symbol{width:26px;height:26px;filter:drop-shadow(0px 1px 1px #435766a0)}
+.aircraft-marker .plane-tag{top:24px;padding:2px 5px;font-size:10px;font-weight:800;border:1px solid #e3eaf0;border-radius:4px}
+.map-panel.labels-on .aircraft-marker .plane-tag{display:block}
+.maplibregl-ctrl-bottom-right{bottom:25px}
+@media(max-width:1020px){.sidebar{min-width:285px;width:285px}.region-control span{display:none}.brand-caption{display:none}.map-summary{padding:9px 11px}.map-metrics{gap:8px}.detail-panel{width:295px}}
+@media(max-width:760px){.topbar{height:54px;padding:0 10px}.workspace{height:calc(100dvh - 54px)}.region-control select{min-width:0;max-width:134px;padding:7px 20px 7px 8px;font-size:10px}.top-actions{gap:7px}.top-button{padding:5px 7px}.brandname{font-size:19px}.brand{gap:5px}.logo{height:26px;width:26px}.sidebar{top:54px;width:min(90vw,330px);min-width:0}.map-top-left{left:8px;top:8px;max-width:calc(100% - 70px)}.map-summary{padding:8px 9px}.map-summary-heading{font-size:9px;letter-spacing:0}.map-metrics{gap:8px}.map-metrics strong{font-size:12px}.metric-time{display:none}.map-top-right{top:8px;right:8px}.floating-button{padding:7px 9px}.search-area{top:81px}.detail-panel{top:auto;bottom:18px;right:8px;left:8px;max-height:66%;width:auto}.map-bottom-left{bottom:50px;left:8px}.age-note{display:none}.legend{padding:7px;font-size:9px}.map-panel.labels-on .aircraft-marker .plane-tag{display:none}}
+@media(max-width:420px){.top-actions .live-indicator{display:none}.region-control select{max-width:130px}.map-summary-heading{font-size:8px}.map-metrics{font-size:10px}}
