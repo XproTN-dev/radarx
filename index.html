@@ -8,7 +8,7 @@
   <title>RadarX — Live Aviation Map</title>
   <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.css">
-  <link rel="stylesheet" href="./style.css?v=0.4.0">
+  <link rel="stylesheet" href="./style.css?v=0.5.0">
 </head>
 <body>
   <header class="topbar">
@@ -21,6 +21,7 @@
     <div class="top-actions">
       <label class="region-control" for="regionSelect"><span>QUICK REGION</span><select id="regionSelect" aria-label="Choose region"><option value="qatar">Qatar / Doha</option><option value="bahrain">Bahrain</option><option value="uae">United Arab Emirates</option><option value="kuwait">Kuwait</option><option value="oman">Oman</option><option value="saudi">Eastern Saudi Arabia</option></select></label>
       <span class="live-indicator" id="liveIndicator"><span class="live-dot"></span><span id="liveLabel">CONNECTING</span></span>
+      <button class="top-button" type="button" id="insightsButton" title="Observed traffic statistics">▥ <span>Insights</span></button>
       <button class="top-button freeze-button" id="freezeButton" type="button" aria-pressed="false" title="Lock current coordinates while zooming">❄ Freeze positions</button>
       <button class="top-button" type="button" id="refreshButton" aria-label="Refresh aircraft">↻ <span>Refresh</span></button>
     </div>
@@ -38,18 +39,23 @@
         <input id="aircraftSearch" type="search" placeholder="Flight, aircraft, registration, hex" aria-label="Search aircraft" autocomplete="off">
         <kbd>/</kbd>
       </div>
-      <div class="filter-heading">FILTER BY AIRCRAFT CATEGORY <span class="filter-caption">SOURCE CLASSIFICATION</span></div>
+      <div class="filter-heading">FILTER BY AIRCRAFT CATEGORY <span class="filter-caption" id="registryState">Loading registry…</span></div>
       <div class="filter-row" id="filters" role="group" aria-label="Aircraft category">
         <button type="button" class="filter active" data-filter="all">All <span id="countAll">0</span></button>
         <button type="button" class="filter" data-filter="military">Military <span id="countMilitary">0</span></button>
         <button type="button" class="filter" data-filter="government">Government <span id="countGovernment">0</span></button>
         <button type="button" class="filter" data-filter="other">Other <span id="countOther">0</span></button>
       </div>
-      <div class="list-heading"><span id="listHeading">AIRCRAFT IN CURRENT AREA</span><span id="visibleCount">—</span></div>
+      <div class="filter-extras" role="group" aria-label="Additional filters">
+          <label><input type="checkbox" id="inViewOnly"> Visible map only</label>
+          <label><input type="checkbox" id="airborneOnly"> Airborne</label>
+          <label><input type="checkbox" id="favouritesOnly"> <span aria-hidden="true">★</span> Favourites</label>
+        </div>
+        <div class="list-heading"><span id="listHeading">AIRCRAFT IN CURRENT AREA</span><span id="visibleCount">—</span></div>
       <div id="listStatus" class="list-status" role="status">Connecting to aircraft feed…</div>
       <div id="aircraftList" class="aircraft-list" aria-label="Aircraft results"></div>
       <div class="sidebar-footer">
-        <strong>RADARX / V0.4</strong>
+        <strong>RADARX / V0.5</strong>
         <span>Military = source-tagged. Government identification awaits verification.</span>
       </div>
     </aside>
@@ -88,6 +94,7 @@
           </div>
           <button id="detailClose" type="button" class="detail-close" aria-label="Close details">×</button>
         </div>
+        <div class="detail-actions"><button type="button" id="favouriteButton" class="detail-action">☆ Save aircraft</button><button type="button" id="focusButton" class="detail-action">⌖ Center on map</button></div>
         <div class="detail-hero">
           <span class="large-plane" aria-hidden="true">✈</span>
           <div><strong id="detailType">—</strong><span id="detailDesc">Aircraft type</span></div>
@@ -100,14 +107,26 @@
           <div><small>ICAO / HEX</small><strong id="detailIcao">—</strong></div>
           <div><small>SQUAWK</small><strong id="detailSquawk">—</strong></div>
         </div>
+        <div class="detail-line"><span>Known operator</span><strong id="detailOperator">Unknown</strong></div>
+        <div class="detail-line"><span>Category source</span><strong id="detailDataSource">—</strong></div>
+        <div class="detail-line"><span>Reference category</span><strong id="detailReferenceCategory">—</strong></div>
         <div class="detail-line"><span>GPS latitude, longitude</span><strong id="detailCoords">—</strong></div>
         <div class="detail-line"><span>Position age</span><strong id="detailAge">—</strong></div>
         <div class="detail-line"><span>Position method</span><strong id="detailMethod">—</strong></div>
         <div class="detail-line"><span>Identification</span><strong id="detailConfidence">—</strong></div>
+        <div class="detail-links"><a id="detailReferenceLink" target="_blank" rel="noopener noreferrer" class="hidden" href="https://github.com/sdr-enthusiasts/plane-alert-db">Aircraft classification reference</a></div>
         <div class="detail-disclaimer">RadarX displays reported observations. Classification and positions may be incomplete, delayed or incorrect.</div>
+      </section>
+      <section id="insightsPanel" class="insights-panel hidden" aria-label="Aviation session insights">
+        <div class="insights-head"><div><div class="eyebrow">RADARX ANALYTICS</div><h2>Observed air traffic</h2></div><button id="closeInsights" class="detail-close" type="button" aria-label="Close insights">×</button></div>
+        <p class="insights-description">Session-only observations. Counts reflect the queried receiver coverage, not total aircraft or regional aviation activity.</p>
+        <div class="insights-stats"><div><small>LATEST</small><strong id="insightsLatest">—</strong></div><div><small>SESSION PEAK</small><strong id="insightsPeak">—</strong></div><div><small>AVERAGE</small><strong id="insightsAverage">—</strong></div></div>
+        <div class="insights-chart" id="insightsChart">No observations yet</div>
+        <p class="insights-description" id="insightsSamples">No historical data collected this session</p>
+        <div class="insights-source"><strong>Data quality:</strong> <span id="insightsQuality">Checking receiver data…</span></div>
       </section>
     </main>
   </div>
-  <script type="module" src="./app.js?v=0.4.0"></script>
+  <script type="module" src="./app.js?v=0.5.0"></script>
 </body>
 </html>
