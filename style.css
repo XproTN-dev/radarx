@@ -61,3 +61,10 @@
 /* V0.2.1: keep selected labels legible, avoid automatic clutter */
 .aircraft-marker.show-label .plane-tag{display:block}
 @media(max-width:760px){.aircraft-marker.show-label .plane-tag{display:none}.aircraft-marker.selected .plane-tag{display:block}}
+
+/* RadarX V0.4: freeze-data diagnostic, no changes to geographic map projection */
+.freeze-button{background:#ebf7ff;color:#07598b;border:1px solid #9fdbff;white-space:nowrap;font-size:11px;padding:9px 11px}
+.freeze-button:hover{background:#d6edff;color:#04476f}
+.freeze-button.frozen{background:#ffe8ab;color:#725300;border-color:#f7d263}
+.live-indicator:not(.bad) .live-dot{background:#36dda3}
+@media(max-width:960px){.freeze-button{font-size:0;padding:7px 10px}.freeze-button:after{content:"Freeze";font-size:11px}.freeze-button.frozen:after{content:"Resume"}}
