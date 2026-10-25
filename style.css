@@ -96,3 +96,15 @@
 @media(max-width:970px){#insightsButton span{display:none}}
 @media(max-width:760px){.insights-panel{left:8px;right:8px;top:auto;bottom:20px;max-height:75%;width:auto;padding:15px}#insightsButton{padding:6px 8px}}
 @media(max-width:420px){#insightsButton{font-size:11px;padding:5px 6px}.filter-caption{font-size:8px}}
+
+/* RadarX V0.5.4 audit */
+.filter-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+.filter-row [data-filter="milgov"]{border-color:#efdbac;background:#fffaf0;color:#7e5900}
+.filter-row [data-filter="milgov"].active{background:#fff0c6;border-color:#e9b84b;box-shadow:inset 3px 0 #dca423}
+.diagnostic-bar{padding:0 16px 12px}
+.diagnostic-bar button{display:block;width:100%;border:1px solid #bedbed;background:#eff8fd;color:#226688;font-size:11px;font-weight:750;text-align:left;border-radius:6px;padding:9px 11px}
+.diagnostic-bar button:hover{background:#dff1fc}
+.diagnostic-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:14px 0}
+.diagnostic-grid>div{border-radius:7px;padding:11px;background:#f4f9fd;border:1px solid #e3eff6}
+.diagnostic-grid small{display:block;font-size:10px;color:#72869a}
+.diagnostic-grid strong{font-size:20px;color:#204e6d;display:block;margin-top:4px}
