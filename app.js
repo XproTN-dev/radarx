@@ -2,6 +2,7 @@ import * as maplibregl from "https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-
 import {loadRegistry,registryLookup,aircraftKind,registryStatus} from "./aircraft-registry.js";
 import {observeCounts,aggregateSummary,sparklineSVG} from "./traffic-insights.js";
 const API = "https://radarx.saifeddinkhmiri.workers.dev";
+const REFRESH_INTERVAL_MS = 30000; // check for updated cached observations about twice per minute
 const HOME = [51.53,25.72];
 const REGIONS = {
  qatar:{center:[51.53,25.72],zoom:7.25,radius:250,label:"QATAR / DOHA"},
@@ -15,7 +16,7 @@ const STYLES = ["https://tiles.openfreemap.org/styles/bright","https://tiles.ope
 const $ = id => document.getElementById(id);
 const favourites=new Set((()=>{try{return JSON.parse(localStorage.getItem("radarx-fav-v1")||"[]")}catch{return []}})());
 const UI={inView:false,airborne:false,favouritesOnly:false,insights:false};
-let aircraft=[], selected="", filter="all", search="", updated=0, sampleTime=0, frozen=false, loading=false, styleIndex=0, requestedCenter=HOME.slice();
+let aircraft=[], selected="", filter="all", search="", updated=0, sampleTime=0, lastAttemptAt=0, frozen=false, loading=false, styleIndex=0, requestedCenter=HOME.slice();
 let radiusNm=REGIONS.qatar.radius, queuedLoad=false, suppressAreaPrompt=false;
 const map=new maplibregl.Map({container:"map",style:STYLES[0],center:HOME,zoom:7.25,minZoom:3.6,maxZoom:16,bearing:0,pitch:0,maxPitch:0,dragRotate:false,attributionControl:false});
 map.addControl(new maplibregl.NavigationControl({showCompass:false}),"bottom-right");
@@ -268,7 +269,7 @@ function showError(message){put("errorBanner",message);$("errorBanner").classLis
 function connection(ok,message){$("liveIndicator").classList.toggle("bad",!ok);put("liveLabel",message);}
 async function load(){
  if(frozen)return;
- if(loading){queuedLoad=true;return;}loading=true;$("refreshButton").disabled=true;connection(true,"UPDATING");
+ if(loading){queuedLoad=true;return;}loading=true;lastAttemptAt=Date.now();$("refreshButton").disabled=true;connection(true,"UPDATING");
  const [lon,lat]=requestedCenter;
  const query=new URLSearchParams({lat:lat.toFixed(4),lon:lon.toFixed(4),dist:String(radiusNm)});
  try{
@@ -354,9 +355,12 @@ $("sidebarToggle").addEventListener("click",()=>$("sidebar").classList.toggle("i
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){$("sidebar").classList.remove("is-open");selected="";render();}if(e.key==="/"&&!(e.target instanceof HTMLInputElement)){e.preventDefault();$("aircraftSearch").focus();$("sidebar").classList.add("is-open");}});
 setInterval(()=>{
  if(document.visibilityState!=="visible")return;
- if(!frozen&&(!updated||Date.now()-updated>=120000))load();
+ if(!frozen&&Date.now()-Math.max(updated,lastAttemptAt)>=REFRESH_INTERVAL_MS)load();
  else refreshAgeAndStatus();
-},10000);
+},5000);
+document.addEventListener("visibilitychange",()=>{
+ if(document.visibilityState==="visible"&&!frozen&&Date.now()-Math.max(updated,lastAttemptAt)>=REFRESH_INTERVAL_MS)load();
+});
 map.on("zoomend",layoutLabels);
 map.on("resize",()=>{layoutLabels();if(UI.inView)render();});
 map.on("moveend",()=>{if(UI.inView)render();});
