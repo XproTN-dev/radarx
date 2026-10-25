@@ -2,11 +2,11 @@
 
 RadarX is a free browser-based aircraft map, designed with a light aviation-radar layout. It is an independent app and does not copy Flightradar24 branding or proprietary code.
 
-## V0.2 capabilities
+## V0.3 capabilities
 - Qatar-centered closer default map (7.25 zoom), redesigned compact navigation and controls, and OpenFreeMap Bright via MapLibre GL JS
 - Quick switcher for Qatar, Bahrain, UAE, Kuwait, Oman and eastern Saudi Arabia
 - Public aircraft observations from FlyItalyADSB via a Cloudflare Worker
-- Rotating plane symbols, aircraft list, filtering, search, details, and mobile interface
+- Native GeoJSON map layers for aircraft positions (not HTML markers), fixed geographic pinning through zooming/panning, automatic label collision detection, aircraft list, filtering, search, details, and mobile interface
 - Military aircraft identified via the source's dbFlags military bit
 - Government filter is intentionally empty until independently verified identities are incorporated
 - Positions can be incomplete or delayed. Other/unverified is not equivalent to confirmed civilian.
@@ -49,3 +49,6 @@ Rendering: MapLibre GL JS.
 - Government identification requires a curated and verifiable database; automatic inference from nationality or callsigns would be misleading.
 - Flight routes, departure/arrival airports, and aircraft occupants are not supplied by this live position feed.
 - This is intended for public aviation observation and research.
+
+## V0.3 rendering fix (2026-10-25)
+Aircraft positions are now rendered with MapLibre GL JS native GeoJSON symbol layers. Prior versions rendered aircraft using MapLibre DOM Markers, which were reported to drift visually while zooming. The aircraft symbols and callsigns are pinned to the map engine's geographic projection; symbols are restored whenever a base map style is changed. Reload the site to fetch the new app.js?v=0.3.0.
