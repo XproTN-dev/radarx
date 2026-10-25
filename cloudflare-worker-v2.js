@@ -49,7 +49,7 @@ export default {
     key="radarx-v2/near/"+lat4+"/"+lon4+"/"+km;ttl=NEAR_TTL_SECONDS;
   }
   const cache=caches.default;
-  const keyUrl="https://radarx-cache.invalid/"+key;
+  const keyUrl=url.origin+"/_radarx_cache/"+key;
   const cacheKey=new Request(keyUrl);
   try{
     const cached=await cache.match(cacheKey);
