@@ -465,4 +465,11 @@ map.on("moveend",()=>{if(UI.inView)render();});
 map.on("style.load",installAircraftLayers);
 map.on("load",()=>{map.resize();installAircraftLayers();load();});
 
-loadRegistry().then(result=>{$("registryState").textContent=result.entries?result.entries.toLocaleString()+" aircraft IDs":"Registry unavailable";render();}).catch(()=>{$("registryState").textContent="Registry unavailable";});
+loadRegistry().then(result=>{
+ $("registryState").textContent=result.entries?result.entries.toLocaleString()+" reference IDs":"Registry unavailable";
+ if(result.entries===0)showError("Aircraft reference database unavailable. Military/government counts may be incomplete.");
+ render();
+}).catch(()=>{
+ $("registryState").textContent="Registry unavailable";
+ showError("Community reference database did not load; provider tags only.");
+});
