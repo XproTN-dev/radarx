@@ -240,7 +240,7 @@ function layoutLabels(){
 function renderDetails(){
  const a=aircraft.find(x=>id(x)===selected);
  $("detailPanel").classList.toggle("hidden",!a);if(!a)return;
- put("detailClass",type(a)==="military"?"MILITARY · SOURCE TAGGED":type(a)==="government"?"GOVERNMENT · VERIFIED":"OTHER / UNVERIFIED");
+ put("detailClass",type(a)==="military"?"MILITARY · SOURCE TAGGED":type(a)==="government"?"GOVERNMENT · COMMUNITY CLASSIFICATION":"OTHER / UNVERIFIED");
  put("detailCallsign",label(a));put("detailRegistration",str(a,"r")||"Registration unavailable");
  put("detailType",str(a,"t")||"Unknown aircraft type");put("detailDesc",str(a,"desc")||str(a,"ownOp")||"No description supplied");
  put("detailAltitude",altitude(a));put("detailSpeed",fmt(a.gs," kt"));put("detailHeading",fmt(a.track,"°"));
