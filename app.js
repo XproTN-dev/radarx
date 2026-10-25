@@ -99,7 +99,16 @@ function setFrozen(next,autoLoad=true){
  button.setAttribute("aria-pressed",String(frozen));
  button.textContent=frozen?"▶ Resume live":"❄ Freeze positions";
  button.title=frozen?"Positions locked until resumed; zoom will not update them":"Hold current GPS coordinates to diagnose zoom movement";
- if(frozen){queuedLoad=false;stopAnimation();connection(true,"SNAPSHOT FROZEN");}
+ if(frozen){
+  const now=Date.now();
+  // Capture the actual currently displayed geographic positions before freezing.
+  for(const [key,m] of transitions){
+   const position=pointAt(m,now);
+   transitions.set(key,{from:position,to:position,start:now-TRANSITION_MS});
+  }
+  queuedLoad=false;stopAnimation();connection(true,"SNAPSHOT FROZEN");
+  renderMarkers();
+ }
  else if(autoLoad){load();}
  refreshAgeAndStatus();
 }
@@ -165,7 +174,7 @@ function makeAircraftGeoJSON() {
     if(!coord(a) || (Number.isFinite(Number(a.seen_pos)) && Number(a.seen_pos) > 90))continue;
     features.push({
       type:"Feature",
-      geometry:{type:"Point",coordinates:frozen?[a.lon,a.lat]:(pointAt(transitions.get(id(a)),Date.now())||[a.lon,a.lat])},
+      geometry:{type:"Point",coordinates:pointAt(transitions.get(id(a)),Date.now())||[a.lon,a.lat]},
       properties:{
         hex:id(a),
         callsign:label(a),
