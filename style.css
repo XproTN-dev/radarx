@@ -68,3 +68,31 @@
 .freeze-button.frozen{background:#ffe8ab;color:#725300;border-color:#f7d263}
 .live-indicator:not(.bad) .live-dot{background:#36dda3}
 @media(max-width:960px){.freeze-button{font-size:0;padding:7px 10px}.freeze-button:after{content:"Freeze";font-size:11px}.freeze-button.frozen:after{content:"Resume"}}
+
+/* RadarX V0.5 — advanced controls and research tools */
+.filter-extras{display:flex;align-items:flex-start;flex-direction:column;gap:8px;padding:0 17px 15px;font-size:11px;font-weight:650;color:#637c92}
+.filter-extras label{display:flex;align-items:center;gap:7px;cursor:pointer;white-space:nowrap}
+.filter-extras input{accent-color:#0784d3;width:14px;height:14px;cursor:pointer}
+.filter-extras label span{color:#e6a721}
+.filter-caption{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.detail-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:0 15px 11px}
+.detail-action{font-size:11px;font-weight:800;padding:9px 6px;background:#edf7fe;color:#1374b6;border:1px solid #cce7fa;border-radius:6px}
+.detail-action:hover{background:#dcedf9}
+.detail-action[aria-pressed=true]{background:#fff5d4;border-color:#efda98;color:#835a0c}
+.detail-links{border-top:1px solid #e7edf2;padding:10px 17px;font-size:11px}
+.detail-links a{color:#137ac9;text-decoration:none;font-weight:700}
+.insights-panel{position:absolute;right:16px;top:95px;z-index:15;width:min(370px,calc(100% - 32px));max-height:calc(100% - 145px);overflow-y:auto;background:#fff;border:1px solid #d3e4ef;border-radius:9px;box-shadow:0 9px 34px #153e5960;padding:20px}
+.insights-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.insights-head h2{margin:7px 0 0;font-size:20px;letter-spacing:-.3px}
+.insights-description{font-size:11px;line-height:1.55;color:#7890a0}
+.insights-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:17px 0}
+.insights-stats>div{border-radius:7px;background:#f0f7fc;border:1px solid #ddebf6;padding:11px 7px}
+.insights-stats small{font-size:9px;color:#8297a8;display:block;letter-spacing:.6px}
+.insights-stats strong{font-size:22px;color:#1c597f;display:block;margin-top:4px}
+.insights-chart{height:85px;padding:5px;background:#f9fcff;border:1px solid #edf2f6;border-radius:7px}
+.insights-source{border-top:1px solid #e9eff5;padding-top:13px;font-size:11px;color:#74899b;line-height:1.55}
+.insights-source strong{color:#4c6b81}
+#insightsButton{font-size:12px}
+@media(max-width:970px){#insightsButton span{display:none}}
+@media(max-width:760px){.insights-panel{left:8px;right:8px;top:auto;bottom:20px;max-height:75%;width:auto;padding:15px}#insightsButton{padding:6px 8px}}
+@media(max-width:420px){#insightsButton{font-size:11px;padding:5px 6px}.filter-caption{font-size:8px}}
