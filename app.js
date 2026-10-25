@@ -18,6 +18,47 @@ const favourites=new Set((()=>{try{return JSON.parse(localStorage.getItem("radar
 const UI={inView:false,airborne:false,favouritesOnly:false,insights:false};
 let aircraft=[], selected="", filter="all", search="", updated=0, sampleTime=0, lastAttemptAt=0, frozen=false, loading=false, styleIndex=0, requestedCenter=HOME.slice();
 let radiusNm=REGIONS.qatar.radius, queuedLoad=false, suppressAreaPrompt=false;
+const transitions=new Map();
+let animationFrame=0;
+const TRANSITION_MS=1500;
+function pointAt(m,now){
+ if(!m)return null;
+ const t=Math.min(1,Math.max(0,(now-m.start)/TRANSITION_MS));
+ const ease=t*t*(3-2*t);
+ return [m.from[0]+(m.to[0]-m.from[0])*ease,m.from[1]+(m.to[1]-m.from[1])*ease];
+}
+function stopAnimation(){if(animationFrame)cancelAnimationFrame(animationFrame);animationFrame=0;}
+function animate(){
+ if(frozen||document.visibilityState!=="visible"||animationFrame)return;
+ const tick=()=>{
+  animationFrame=0;
+  if(frozen||document.visibilityState!=="visible")return;
+  const now=Date.now();
+  if([...transitions.values()].some(m=>now<m.start+TRANSITION_MS)){
+   renderMarkers();
+   animationFrame=requestAnimationFrame(tick);
+  }
+ };
+ animationFrame=requestAnimationFrame(tick);
+}
+function transitionTo(next){
+ const now=Date.now();
+ const previous=new Map(aircraft.map(a=>[id(a),a]));
+ const present=new Set();
+ for(const a of next){
+  if(!coord(a))continue;
+  const key=id(a);present.add(key);
+  const old=previous.get(key),prior=transitions.get(key);
+  const from=prior?pointAt(prior,now):old&&coord(old)?[old.lon,old.lat]:[a.lon,a.lat];
+  const to=[a.lon,a.lat];
+  const targetChanged=!prior||Math.hypot(prior.to[0]-to[0],prior.to[1]-to[1])>0.000005;
+  const age=Number(a.seen_pos);
+  const move=old&&coord(old)&&targetChanged&&Number.isFinite(age)&&age>=0&&age<=20&&Math.hypot(to[0]-from[0],to[1]-from[1])<0.3;
+  if(move)transitions.set(key,{from,to,start:now});
+  else if(targetChanged)transitions.delete(key);
+ }
+ for(const key of transitions.keys())if(!present.has(key))transitions.delete(key);
+}
 const map=new maplibregl.Map({container:"map",style:STYLES[0],center:HOME,zoom:7.25,minZoom:3.6,maxZoom:16,bearing:0,pitch:0,maxPitch:0,dragRotate:false,attributionControl:false});
 map.addControl(new maplibregl.NavigationControl({showCompass:false}),"bottom-right");
 map.addControl(new maplibregl.AttributionControl({compact:true}),"bottom-right");
@@ -58,7 +99,7 @@ function setFrozen(next,autoLoad=true){
  button.setAttribute("aria-pressed",String(frozen));
  button.textContent=frozen?"▶ Resume live":"❄ Freeze positions";
  button.title=frozen?"Positions locked until resumed; zoom will not update them":"Hold current GPS coordinates to diagnose zoom movement";
- if(frozen){queuedLoad=false;connection(true,"SNAPSHOT FROZEN");}
+ if(frozen){queuedLoad=false;stopAnimation();connection(true,"SNAPSHOT FROZEN");}
  else if(autoLoad){load();}
  refreshAgeAndStatus();
 }
@@ -124,7 +165,7 @@ function makeAircraftGeoJSON() {
     if(!coord(a) || (Number.isFinite(Number(a.seen_pos)) && Number(a.seen_pos) > 90))continue;
     features.push({
       type:"Feature",
-      geometry:{type:"Point",coordinates:[a.lon,a.lat]},
+      geometry:{type:"Point",coordinates:frozen?[a.lon,a.lat]:(pointAt(transitions.get(id(a)),Date.now())||[a.lon,a.lat])},
       properties:{
         hex:id(a),
         callsign:label(a),
@@ -280,7 +321,10 @@ async function load(){
   if(!Array.isArray(data.ac))throw Error("Invalid aircraft data: missing ac array");
   // A freeze click may happen during a pending HTTP request. Never mutate a frozen snapshot.
   if(frozen)return;
-  const seen=new Set();aircraft=data.ac.filter(a=>{if(!a||!a.hex||seen.has(id(a)))return false;seen.add(id(a));return true;});
+  const seen=new Set();
+  const nextAircraft=data.ac.filter(a=>{if(!a||!a.hex||seen.has(id(a)))return false;seen.add(id(a));return true;});
+  transitionTo(nextAircraft);
+  aircraft=nextAircraft;
   updated=Date.now();
   observeCounts(Date.now(),aircraft.length,aircraft.filter(a=>type(a)==="military").length,aircraft.filter(a=>type(a)==="government").length,aircraft.filter(a=>type(a)==="other").length);
   const sourceNow=Number(data.now);
@@ -289,7 +333,7 @@ async function load(){
     : Number.isFinite(receivedAt) ? receivedAt : 0;
   if(selected&&!aircraft.some(a=>id(a)===selected))selected="";
   $("searchAreaButton").classList.add("hidden");
-  showError("");connection(true,"FEED ONLINE");render();refreshAgeAndStatus();
+  showError("");connection(true,"FEED ONLINE");render();animate();refreshAgeAndStatus();
  }catch(e){
   connection(false,"FEED UNAVAILABLE");
   showError("Aircraft feed unavailable: "+(e.name==="AbortError"?"request timed out":e.message)+". Existing results may be stale.");
@@ -359,7 +403,11 @@ setInterval(()=>{
  else refreshAgeAndStatus();
 },1000);
 document.addEventListener("visibilitychange",()=>{
- if(document.visibilityState==="visible"&&!frozen&&Date.now()-Math.max(updated,lastAttemptAt)>=REFRESH_INTERVAL_MS)load();
+ if(document.visibilityState==="hidden")stopAnimation();
+ else{
+  animate();
+  if(!frozen&&Date.now()-Math.max(updated,lastAttemptAt)>=REFRESH_INTERVAL_MS)load();
+ }
 });
 map.on("zoomend",layoutLabels);
 map.on("resize",()=>{layoutLabels();if(UI.inView)render();});
