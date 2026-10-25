@@ -55,52 +55,133 @@ function renderList(shown){
  }
  list.append(fragment);
 }
-function makeMarker(a){
- const el=document.createElement("div");el.className="aircraft-marker";
- const symbol=document.createElement("span");symbol.className="plane-symbol";symbol.innerHTML=svg;
- const tag=document.createElement("span");tag.className="plane-tag";el.append(symbol,tag);
- const code=id(a);el.addEventListener("click",e=>{e.stopPropagation();select(code,false);});
- const marker=new maplibregl.Marker({element:el,anchor:"center",rotationAlignment:"map"}).setLngLat([a.lon,a.lat]).addTo(map);
- return {marker,el,symbol,tag};
+/* Aircraft rendering is implemented as MapLibre native GeoJSON symbol layers.
+   Screen position is projected from [longitude, latitude] in the map engine.
+   Do not use HTML/DOM markers here: they were visibly drifting on zoom. */
+const AIRCRAFT_SOURCE = "radarx-observations";
+const AIRCRAFT_LAYER = "radarx-planes";
+const AIRCRAFT_LABELS = "radarx-aircraft-labels";
+let aircraftEventsAttached = false;
+
+function drawPlaneIcon(fill) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(2, 2);
+  ctx.shadowColor = "rgba(15, 43, 68, 0.38)";
+  ctx.shadowBlur = 1.5;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = fill;
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 0.85;
+  ctx.lineJoin = "round";
+  // The image points north. A feature's ground track rotates it clockwise.
+  const p = new Path2D("M16 1.2c1.5 0 2.2 2.2 2.2 5.4v7.4l11 8v3.7l-11-4v7.3l3.3 2.1v2l-5.5-1.6-5.5 1.6v-2l3.3-2.1v-7.3l-11 4v-3.7l11-8V6.6C13.8 3.4 14.5 1.2 16 1.2Z");
+  ctx.fill(p);
+  ctx.stroke(p);
+  return ctx.getImageData(0, 0, 64, 64);
 }
-function renderMarkers(shown){
- const ids=new Set();
- for(const a of shown){
-  if(!coord(a)||Number(a.seen_pos)>90)continue;
-  const code=id(a);ids.add(code);
-  let x=markers.get(code);if(!x){x=makeMarker(a);markers.set(code,x);}else x.marker.setLngLat([a.lon,a.lat]);
-  x.el.className="aircraft-marker "+type(a)+(selected===code?" selected":"");
-  x.symbol.style.transform="rotate("+(Number(a.track)||0)+"deg)";
-  x.tag.textContent=label(a);x.el.title=label(a)+" · "+altitude(a);
- }
- for(const [code,x] of markers)if(!ids.has(code)){x.marker.remove();markers.delete(code);}
+function makeAircraftGeoJSON() {
+  const features = [];
+  for(const a of aircraft.filter(match)) {
+    if(!coord(a) || (Number.isFinite(Number(a.seen_pos)) && Number(a.seen_pos) > 90))continue;
+    features.push({
+      type:"Feature",
+      geometry:{type:"Point",coordinates:[a.lon,a.lat]},
+      properties:{
+        hex:id(a),
+        callsign:label(a),
+        category:type(a),
+        heading:Number.isFinite(Number(a.track))?Number(a.track):0,
+        priority:id(a)===selected?3:type(a)==="military"?2:1,
+        selected:id(a)===selected?1:0
+      }
+    });
+  }
+  return {type:"FeatureCollection",features};
 }
-/* Display labels selectively, preventing overlapping callsigns at high zoom. */
+function renderMarkers() {
+  const source=map.getSource(AIRCRAFT_SOURCE);
+  if(source)source.setData(makeAircraftGeoJSON());
+}
+function installAircraftLayers(){
+  if(!map.isStyleLoaded())return;
+  try {
+    const colorways={
+      "radarx-plane-other":"#efb724",
+      "radarx-plane-military":"#e9445b",
+      "radarx-plane-government":"#815bd5",
+      "radarx-plane-selected":"#087fd3"
+    };
+    for(const [name,color] of Object.entries(colorways)){
+      if(!map.hasImage(name))map.addImage(name,drawPlaneIcon(color),{pixelRatio:2});
+    }
+    if(!map.getSource(AIRCRAFT_SOURCE)){
+      map.addSource(AIRCRAFT_SOURCE,{type:"geojson",data:makeAircraftGeoJSON()});
+    }
+    if(!map.getLayer(AIRCRAFT_LAYER)){
+      map.addLayer({
+        id:AIRCRAFT_LAYER,
+        type:"symbol",
+        source:AIRCRAFT_SOURCE,
+        layout:{
+          "icon-image":["case",["==",["get","selected"],1],"radarx-plane-selected",
+            ["match",["get","category"],
+              "military","radarx-plane-military",
+              "government","radarx-plane-government",
+              "radarx-plane-other"]],
+          "icon-rotate":["get","heading"],
+          "icon-rotation-alignment":"map",
+          "icon-pitch-alignment":"map",
+          "icon-size":["interpolate",["linear"],["zoom"],4,0.74,7,0.92,10,1.15,14,1.35],
+          "icon-allow-overlap":true,
+          "icon-ignore-placement":true,
+          "symbol-sort-key":["get","priority"]
+        }
+      });
+    }
+    if(!map.getLayer(AIRCRAFT_LABELS)){
+      map.addLayer({
+        id:AIRCRAFT_LABELS,
+        type:"symbol",
+        source:AIRCRAFT_SOURCE,
+        minzoom:8.7,
+        layout:{
+          "text-field":["get","callsign"],
+          "text-font":["Noto Sans Regular"],
+          "text-size":11,
+          "text-offset":[0,1.8],
+          "text-anchor":"top",
+          "text-padding":5,
+          "text-max-width":9,
+          "text-allow-overlap":false,
+          "text-ignore-placement":false,
+          "symbol-sort-key":["get","priority"]
+        },
+        paint:{
+          "text-color":"#1f4058",
+          "text-halo-color":"#ffffff",
+          "text-halo-width":1.6
+        }
+      });
+    }
+    if(!aircraftEventsAttached){
+      map.on("click",AIRCRAFT_LAYER,e=>{
+        const feature=e.features?.[0];
+        if(feature?.properties?.hex)select(feature.properties.hex,false);
+      });
+      map.on("mouseenter",AIRCRAFT_LAYER,()=>{map.getCanvas().style.cursor="pointer";});
+      map.on("mouseleave",AIRCRAFT_LAYER,()=>{map.getCanvas().style.cursor="";});
+      aircraftEventsAttached=true;
+    }
+    renderMarkers();
+  } catch(e){
+    showError("Aircraft layer failed to initialize: "+e.message);
+  }
+}
 function layoutLabels(){
- const zoom=map.getZoom();
- const entries=[...markers.entries()];
- for(const [,entry] of entries)entry.el.classList.remove("show-label");
- if(zoom<8.3)return;
- const prioritized=entries.map(([code,entry])=>{
-  const a=aircraft.find(item=>id(item)===code);
-  return {code,entry,a,priority:code===selected?0:a&&type(a)==="military"?1:2};
- }).filter(x=>x.a&&coord(x.a)).sort((a,b)=>a.priority-b.priority);
- const width=map.getContainer().clientWidth, height=map.getContainer().clientHeight;
- const placed=[];
- for(const item of prioritized){
-  const p=map.project([item.a.lon,item.a.lat]);
-  const title=label(item.a);
-  const w=Math.min(132,Math.max(35,title.length*7+12));
-  const box={left:p.x-w/2-4,right:p.x+w/2+4,top:p.y+18,bottom:p.y+43};
-  // The top-left status card and right controls have priority over callsigns.
-  if(box.left<8||box.right>width-8||box.top<8||box.bottom>height-20)continue;
-  if(box.top<87&&box.left<375)continue;
-  if(box.top<105&&box.right>width-165)continue;
-  const overlaps=placed.some(other=>box.left<other.right&&box.right>other.left&&box.top<other.bottom&&box.bottom>other.top);
-  if(overlaps&&item.priority!==0)continue;
-  item.entry.el.classList.add("show-label");
-  placed.push(box);
- }
+  // MapLibre's collision detection places callsigns within its own map projection.
 }
 function renderDetails(){
  const a=aircraft.find(x=>id(x)===selected);
@@ -176,4 +257,5 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){$("sidebar").classL
 setInterval(()=>{if(document.visibilityState==="visible"){if(!updated||Date.now()-updated>=120000)load();else put("metricUpdated",Math.round((Date.now()-updated)/1000)+"s ago");}},10000);
 map.on("zoomend",layoutLabels);
 map.on("resize",layoutLabels);
-map.on("load",()=>{map.resize();load();});
+map.on("style.load",installAircraftLayers);
+map.on("load",()=>{map.resize();installAircraftLayers();load();});
