@@ -8,7 +8,7 @@
   <title>RadarX — Live Aviation Map</title>
   <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.css">
-  <link rel="stylesheet" href="./style.css?v=0.6.0">
+  <link rel="stylesheet" href="./style.css?v=0.6.1">
 </head>
 <body>
   <header class="topbar">
@@ -48,6 +48,7 @@
         <button type="button" class="filter" data-filter="government">Government <span id="countGovernment">0</span></button>
         <button type="button" class="filter" data-filter="other">Other <span id="countOther">0</span></button>
       </div>
+      <p class="classification-caution" id="classificationCaution" role="status">Classification based on received observations only.</p>
       <div class="diagnostic-bar"><button type="button" id="diagnosticsButton">◉ Coverage & classification report</button></div>
       <div class="filter-extras" role="group" aria-label="Additional filters">
           <label><input type="checkbox" id="inViewOnly"> Visible map only</label>
@@ -83,7 +84,7 @@
       <button id="searchAreaButton" class="search-area hidden" type="button">⌖ Search this area</button>
       <div class="map-bottom-left">
         <div class="legend"><span class="legend-label">AIRCRAFT</span><span><i class="legend-dot civilian"></i>Other / unverified</span><span><i class="legend-dot military"></i>Military-tagged</span><span><i class="legend-dot government"></i>Government (community)</span></div>
-        <div class="age-note"><span id="coverageRadius">250 NM query · FlyItalyADSB feed</span>. Only observed positions are plotted; not all flights appear.</div>
+        <div class="scan-coverage" id="scanCoverageText" role="status">Loading regional coverage…</div><div class="age-note"><span id="coverageRadius">250 NM query · FlyItalyADSB feed</span>. Only observed positions are plotted; not all flights appear.</div>
       </div>
       <div class="map-bottom-right">
         <span class="data-credit">Aircraft data: <a href="https://flyitalyadsb.com/" target="_blank" rel="noopener noreferrer">FlyItalyADSB</a> · CC BY-SA 4.0</span>
@@ -136,6 +137,6 @@
       </section>
     </main>
   </div>
-  <script type="module" src="./app.js?v=0.6.0"></script>
+  <script type="module" src="./app.js?v=0.6.1"></script>
 </body>
 </html>
