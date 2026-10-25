@@ -112,3 +112,7 @@
 /* RadarX V0.5.5 build identification */
 .version-note{font-size:10px;line-height:1.4;color:#71879b;background:#f5f9fc;border:1px solid #e1eaf0;border-radius:5px;margin:0 16px 10px;padding:7px 9px}
 .version-note strong{color:#0a79be}
+
+/* RadarX V0.6.1 classification transparency */
+.classification-caution{margin:0 15px 11px;padding:9px 10px;border-radius:6px;background:#fff9ec;border:1px solid #efdcae;color:#805f20;font-size:10px;line-height:1.5}
+.scan-coverage{background:#fffdf0;border:1px solid #e3d6a0;color:#685830;display:inline-block;border-radius:5px;font-size:10px;line-height:1.4;padding:6px 9px;margin-bottom:5px}
