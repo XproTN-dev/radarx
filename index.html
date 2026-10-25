@@ -8,7 +8,7 @@
   <title>RadarX — Live Aviation Map</title>
   <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.css">
-  <link rel="stylesheet" href="./style.css?v=0.5.5">
+  <link rel="stylesheet" href="./style.css?v=0.6.0">
 </head>
 <body>
   <header class="topbar">
@@ -19,7 +19,7 @@
       <span class="brand-caption">AVIATION INTELLIGENCE</span>
     </div>
     <div class="top-actions">
-      <label class="region-control" for="regionSelect"><span>QUICK REGION</span><select id="regionSelect" aria-label="Choose region"><option value="qatar">Qatar / Doha</option><option value="bahrain">Bahrain</option><option value="uae">United Arab Emirates</option><option value="kuwait">Kuwait</option><option value="oman">Oman</option><option value="saudi">Eastern Saudi Arabia</option></select></label>
+      <label class="region-control" for="regionSelect"><span>QUICK REGION</span><select id="regionSelect" aria-label="Choose region"><option value="mena" selected>Gulf + MENA</option><option value="gulf">Gulf only</option><option value="qatar">Qatar / Doha (local)</option><option value="bahrain">Bahrain</option><option value="uae">United Arab Emirates</option><option value="kuwait">Kuwait</option><option value="oman">Oman</option><option value="saudi">Eastern Saudi Arabia</option></select></label>
       <span class="live-indicator" id="liveIndicator"><span class="live-dot"></span><span id="liveLabel">CONNECTING</span></span>
       <button class="top-button" type="button" id="insightsButton" title="Observed traffic statistics">▥ <span>Insights</span></button>
       <button class="top-button freeze-button" id="freezeButton" type="button" aria-pressed="false" title="Lock current coordinates while zooming">❄ Freeze positions</button>
@@ -58,7 +58,7 @@
       <div id="listStatus" class="list-status" role="status">Connecting to aircraft feed…</div>
       <div id="aircraftList" class="aircraft-list" aria-label="Aircraft results"></div>
       <div class="sidebar-footer">
-        <strong>RADARX / V0.5.5</strong>
+        <strong>RADARX / V0.6.5</strong>
         <span>Military = source-tagged. Government identification awaits verification.</span>
       </div>
     </aside>
@@ -67,7 +67,7 @@
       <div id="map" aria-label="Interactive map of aircraft around the Gulf"></div>
       <div class="map-top-left">
         <div class="map-summary">
-          <div class="map-summary-heading"><span class="pulse-dot"></span> RADARX <span class="subtle-divider">•</span> <span id="mapAreaName">QATAR / DOHA</span></div>
+          <div class="map-summary-heading"><span class="pulse-dot"></span> RADARX <span class="subtle-divider">•</span> <span id="mapAreaName">GULF + MENA</span></div>
           <div class="map-metrics">
             <span class="metric-primary"><strong id="metricTracked">—</strong> aircraft</span>
             <span><strong id="metricMil">—</strong> military tagged</span>
@@ -136,6 +136,6 @@
       </section>
     </main>
   </div>
-  <script type="module" src="./app.js?v=0.5.5"></script>
+  <script type="module" src="./app.js?v=0.6.0"></script>
 </body>
 </html>
