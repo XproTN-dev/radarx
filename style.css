@@ -52,8 +52,12 @@
 .aircraft-marker{width:30px;height:32px;filter:drop-shadow(0 1px 0 #fff)}
 .aircraft-marker .plane-symbol{width:26px;height:26px;filter:drop-shadow(0px 1px 1px #435766a0)}
 .aircraft-marker .plane-tag{top:24px;padding:2px 5px;font-size:10px;font-weight:800;border:1px solid #e3eaf0;border-radius:4px}
-.map-panel.labels-on .aircraft-marker .plane-tag{display:block}
+.aircraft-marker.show-label .plane-tag{display:block}
 .maplibregl-ctrl-bottom-right{bottom:25px}
 @media(max-width:1020px){.sidebar{min-width:285px;width:285px}.region-control span{display:none}.brand-caption{display:none}.map-summary{padding:9px 11px}.map-metrics{gap:8px}.detail-panel{width:295px}}
-@media(max-width:760px){.topbar{height:54px;padding:0 10px}.workspace{height:calc(100dvh - 54px)}.region-control select{min-width:0;max-width:134px;padding:7px 20px 7px 8px;font-size:10px}.top-actions{gap:7px}.top-button{padding:5px 7px}.brandname{font-size:19px}.brand{gap:5px}.logo{height:26px;width:26px}.sidebar{top:54px;width:min(90vw,330px);min-width:0}.map-top-left{left:8px;top:8px;max-width:calc(100% - 70px)}.map-summary{padding:8px 9px}.map-summary-heading{font-size:9px;letter-spacing:0}.map-metrics{gap:8px}.map-metrics strong{font-size:12px}.metric-time{display:none}.map-top-right{top:8px;right:8px}.floating-button{padding:7px 9px}.search-area{top:81px}.detail-panel{top:auto;bottom:18px;right:8px;left:8px;max-height:66%;width:auto}.map-bottom-left{bottom:50px;left:8px}.age-note{display:none}.legend{padding:7px;font-size:9px}.map-panel.labels-on .aircraft-marker .plane-tag{display:none}}
+@media(max-width:760px){.topbar{height:54px;padding:0 10px}.workspace{height:calc(100dvh - 54px)}.region-control select{min-width:0;max-width:134px;padding:7px 20px 7px 8px;font-size:10px}.top-actions{gap:7px}.top-button{padding:5px 7px}.brandname{font-size:19px}.brand{gap:5px}.logo{height:26px;width:26px}.sidebar{top:54px;width:min(90vw,330px);min-width:0}.map-top-left{left:8px;top:8px;max-width:calc(100% - 70px)}.map-summary{padding:8px 9px}.map-summary-heading{font-size:9px;letter-spacing:0}.map-metrics{gap:8px}.map-metrics strong{font-size:12px}.metric-time{display:none}.map-top-right{top:8px;right:8px}.floating-button{padding:7px 9px}.search-area{top:81px}.detail-panel{top:auto;bottom:18px;right:8px;left:8px;max-height:66%;width:auto}.map-bottom-left{bottom:50px;left:8px}.age-note{display:none}.legend{padding:7px;font-size:9px}.aircraft-marker.show-label .plane-tag{display:none}}
 @media(max-width:420px){.top-actions .live-indicator{display:none}.region-control select{max-width:130px}.map-summary-heading{font-size:8px}.map-metrics{font-size:10px}}
+
+/* V0.2.1: keep selected labels legible, avoid automatic clutter */
+.aircraft-marker.show-label .plane-tag{display:block}
+@media(max-width:760px){.aircraft-marker.show-label .plane-tag{display:none}.aircraft-marker.selected .plane-tag{display:block}}
