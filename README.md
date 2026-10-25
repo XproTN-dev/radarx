@@ -12,7 +12,7 @@ RadarX is a free browser-based aircraft map, designed with a light aviation-rada
 - Positions can be incomplete or delayed. Other/unverified is not equivalent to confirmed civilian.
 - Query around Doha by default (250 nautical miles), switching regions changes the query center. Pan and use Search this area to look elsewhere.
 - Large-scale zoomed-out maps may show aircraft clustered near one longitude because the live feed only covers a small geographic radius; zoom in or select a region to inspect them. This is expected geographic compression, not global coverage.
-- Aircraft are refreshed every two minutes while the page is open and visible; source/relay caching can delay updates further.
+- Aircraft are polled every 30 seconds while the page is open and visible; source/relay caching can delay updates further.
 - All values and displays are observations, not a primary radar picture.
 
 ## Publish using GitHub Pages
@@ -57,7 +57,7 @@ Aircraft positions are now rendered with MapLibre GL JS native GeoJSON symbol la
 - Aircraft icon size is fixed rather than interpolated with zoom; map bearing and pitch are locked to a flat north-up map.
 - Selecting a plane shows a separate blue geographic anchor ring drawn from the same GeoJSON point by MapLibre's circle renderer, enabling an exact visual check for relative movement.
 - The aircraft detail panel shows received GPS latitude and longitude. Coordinates stay unchanged while zooming unless new API observations arrive.
-- Refreshing is still on a 120-second interval while the tab is visible, so real movement can occur when new data arrives. Zoom events do not fetch aircraft data.
+- RadarX polling now runs every 30 seconds while the tab is visible (as of V0.5.1), so real movement can occur when new data arrives. Zoom events do not fetch aircraft data.
 - A geographic point legitimately changes its position in screen pixels when the map zooms or pans; it must not change which ground coordinate it is attached to.
 - User's latest supplied recording was only 34x34 pixels when decoded, so independent visual confirmation of the reported drift was not possible from it.
 
@@ -93,3 +93,10 @@ Aircraft positions are now rendered with MapLibre GL JS native GeoJSON symbol la
 - Aircraft classifications: plane-alert-db contributors, ODbL 1.0; community classifications may be outdated or inaccurate.
 - The community registry is fetched directly in the browser, so it may be unavailable on networks that restrict GitHub raw content.
 - RadarX is not a comprehensive real-time airspace surveillance system.
+
+## Near-live polling — V0.5.1 (2026-10-25)
+- Browser now checks the shared Cloudflare endpoint approximately every 30 seconds while the tab is visible (5-second freshness display updates); respects Freeze and avoids rapid retry loops on network failures.
+- The current Cloudflare Worker from an earlier manual deployment **still caches responses for 90 seconds**. To achieve substantially fresher data, its TTL must be changed by the Cloudflare account owner. The GitHub website alone cannot change Cloudflare's cache.
+- At 30 seconds per cache miss per active region, a continuously requested region could require approximately 86,400 upstream requests over 30 days. The free provider plan has 300,000/month and 30/minute per key beginning October 27, 2026. Cloudflare caches can be geographically separate, and multiple simultaneously requested regions increase usage. The provider has no WebSocket stream; its snapshot is rewritten every 2 seconds and its API reloads every ~3 seconds.
+- **Terms check:** FlyItalyADSB explicitly permits a cached server supporting its own app users but restricts standalone public real-time forwarding of its API responses without an enterprise agreement. Our public Worker must remain application-specific rather than a general data relay; seek clarification before distributing the raw Worker endpoint or inviting broad public traffic.
+- Source age uses the feed's `now` field, not the time the browser received the response. Stale samples must never be described as live.
