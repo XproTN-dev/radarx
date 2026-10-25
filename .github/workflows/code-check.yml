@@ -18,6 +18,8 @@ jobs:
         run: |
           node --check app.js
           node --check aircraft-registry.js
+          node --check regional-scan.js
+          node --check cloudflare-worker-v2.js
           node --check traffic-insights.js
       - name: Validate page references
         run: |
