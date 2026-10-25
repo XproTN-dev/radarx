@@ -2,7 +2,7 @@
 
 RadarX is a free browser-based aircraft map, designed with a light aviation-radar layout. It is an independent app and does not copy Flightradar24 branding or proprietary code.
 
-## V0.3 capabilities
+## V0.4 capabilities
 - Qatar-centered closer default map (7.25 zoom), redesigned compact navigation and controls, and OpenFreeMap Bright via MapLibre GL JS
 - Quick switcher for Qatar, Bahrain, UAE, Kuwait, Oman and eastern Saudi Arabia
 - Public aircraft observations from FlyItalyADSB via a Cloudflare Worker
@@ -10,7 +10,7 @@ RadarX is a free browser-based aircraft map, designed with a light aviation-rada
 - Military aircraft identified via the source's dbFlags military bit
 - Government filter is intentionally empty until independently verified identities are incorporated
 - Positions can be incomplete or delayed. Other/unverified is not equivalent to confirmed civilian.
-- Query around Doha by default (180 nautical miles), switching regions changes the query center. Pan and use Search this area to look elsewhere.
+- Query around Doha by default (250 nautical miles), switching regions changes the query center. Pan and use Search this area to look elsewhere.
 - Large-scale zoomed-out maps may show aircraft clustered near one longitude because the live feed only covers a small geographic radius; zoom in or select a region to inspect them. This is expected geographic compression, not global coverage.
 - Aircraft are refreshed every two minutes while the page is open and visible; source/relay caching can delay updates further.
 - All values and displays are observations, not a primary radar picture.
@@ -27,7 +27,7 @@ No downloads, Node.js, server installation or compilation are required.
 The live data backend already deployed is:
 https://radarx.saifeddinkhmiri.workers.dev
 
-The frontend calls /v1/near?lat=25.7200&lon=51.5300&dist=180. Distance in the Worker endpoint is nautical miles, and the Worker converts it to km for the upstream FlyItalyADSB provider.
+The frontend calls /v1/near?lat=25.7200&lon=51.5300&dist=250. Distance in the Worker endpoint is nautical miles, and the Worker converts it to km for the upstream FlyItalyADSB provider.
 
 Keep the private FlyItalyADSB key in Cloudflare as a Worker secret named FLYITALY_API_KEY. NEVER add a key to GitHub, HTML, or JavaScript.
 
@@ -60,3 +60,12 @@ Aircraft positions are now rendered with MapLibre GL JS native GeoJSON symbol la
 - Refreshing is still on a 120-second interval while the tab is visible, so real movement can occur when new data arrives. Zoom events do not fetch aircraft data.
 - A geographic point legitimately changes its position in screen pixels when the map zooms or pans; it must not change which ground coordinate it is attached to.
 - User's latest supplied recording was only 34x34 pixels when decoded, so independent visual confirmation of the reported drift was not possible from it.
+
+## V0.4 data coverage and zoom diagnostic (25 October 2026)
+- Added **Freeze positions** button that holds the current aircraft snapshot, including protection against an HTTP request that was already in flight. Zoom and pan do not change the captured GPS coordinates. Press **Resume live** to get updated data.
+- The age in the status card now uses the upstream `now` timestamp where provided (instead of labeling each cached browser response as fresh). If that timestamp is missing it displays **unknown**; 3+ minute samples are flagged as delayed.
+- Search radius was widened from 180 NM to 250 NM (about 463 km), below the provider's documented 500 km free-plan limit. This does **not** add receiver coverage or guarantee more aircraft.
+- **FR24 parity is not expected:** FR24 uses its own ADS-B/MLAT/satellite network and scheduled flight data, while RadarX currently uses only FlyItalyADSB. Some government or military aircraft intentionally hidden on FR24 may appear on other ADS-B networks, and vice versa. Comparing aircraft requires matching the same UTC time, geographic extent, and ICAO hex identifier.
+- Aircraft **screen pixels** necessarily move when zooming a geographically anchored map. Their reported **latitude/longitude** and position relative to the coastline should stay fixed during Freeze mode.
+- A position can jump when a new cached sample is received after resuming; smoother interpolation is not yet implemented.
+- API keys remain stored as Cloudflare secrets; never expose them in GitHub.
