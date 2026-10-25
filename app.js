@@ -418,7 +418,7 @@ async function refreshMilitary(){
   const payload=await res.json();
   if(!Array.isArray(payload.ac))throw Error("Invalid military response");
   if(frozen)return;
-  scanMilitary(payload);
+  scanMilitary(payload,Date.now(),regionalMode);
   milAvailable=true;
   const next=scanAircraft();
   transitionTo(next);
