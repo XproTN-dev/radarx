@@ -138,7 +138,7 @@ function renderCounts(){
  put("totalCount",current.length);put("countAll",current.length);put("countMilitary",m);put("countGovernment",g);
  put("countMilGov",m+g);
  $("classificationCaution").textContent=(m+g)===0
-  ? "No military/government aircraft identified in received data. This is not proof of no activity."
+  ? (milAvailable?"No military/government matches among current observations. Coverage remains incomplete.":"Global military source not configured. Regional samples alone cannot establish military activity.")
   : (m+g)+" identified in received data. Other aircraft may remain unclassified.";
  put("countOther",current.length-m-g);put("metricTracked",current.length);put("metricMil",m);
  refreshAgeAndStatus();
@@ -196,7 +196,7 @@ function drawPlaneIcon(fill) {
 function makeAircraftGeoJSON() {
   const features = [];
   for(const a of aircraft.filter(match)) {
-    if(!coord(a)||a.__stale||(typeof a.seen_pos==="number"&&a.seen_pos>90))continue;
+    if(!coord(a)||(a.__stale&&!UI.includeStale)||(typeof a.seen_pos==="number"&&a.seen_pos>180))continue;
     features.push({
       type:"Feature",
       geometry:{type:"Point",coordinates:pointAt(transitions.get(id(a)),Date.now())||[a.lon,a.lat]},
@@ -204,6 +204,7 @@ function makeAircraftGeoJSON() {
         hex:id(a),
         callsign:label(a),
         category:type(a),
+        stale:a.__stale?1:0,
         heading:Number.isFinite(Number(a.track))?Number(a.track):0,
         priority:id(a)===selected?3:type(a)==="military"?2:1,
         selected:id(a)===selected?1:0
@@ -222,7 +223,8 @@ function installAircraftLayers(){
       "radarx-plane-other":"#efb724",
       "radarx-plane-military":"#e9445b",
       "radarx-plane-government":"#815bd5",
-      "radarx-plane-selected":"#087fd3"
+      "radarx-plane-selected":"#087fd3",
+      "radarx-plane-stale":"#94a3b1"
     };
     for(const [name,color] of Object.entries(colorways)){
       if(!map.hasImage(name))map.addImage(name,drawPlaneIcon(color),{pixelRatio:2});
@@ -254,7 +256,7 @@ function installAircraftLayers(){
         type:"symbol",
         source:AIRCRAFT_SOURCE,
         layout:{
-          "icon-image":["case",["==",["get","selected"],1],"radarx-plane-selected",
+          "icon-image":["case",["==",["get","stale"],1],"radarx-plane-stale",["==",["get","selected"],1],"radarx-plane-selected",
             ["match",["get","category"],
               "military","radarx-plane-military",
               "government","radarx-plane-government",
@@ -529,8 +531,14 @@ $("styleButton").addEventListener("click",()=>{styleIndex=(styleIndex+1)%STYLES.
 $("detailClose").addEventListener("click",()=>{selected="";render();});
 $("sidebarToggle").addEventListener("click",()=>$("sidebar").classList.toggle("is-open"));
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){$("sidebar").classList.remove("is-open");selected="";render();}if(e.key==="/"&&!(e.target instanceof HTMLInputElement)){e.preventDefault();$("aircraftSearch").focus();$("sidebar").classList.add("is-open");}});
+let lastObservationSweepAt=0;
 setInterval(()=>{
  if(document.visibilityState!=="visible")return;
+ if(regionalMode!=="local"&&!frozen&&Date.now()-lastObservationSweepAt>=15000){
+   lastObservationSweepAt=Date.now();
+   aircraft=scanAircraft();
+   render();
+ }
  if(!frozen&&Date.now()-Math.max(updated,lastAttemptAt)>=(regionalMode==="local"?REFRESH_INTERVAL_MS:(bootstrapping?5000:REGION_POLL_MS)))load();
  if(regionalMode!=="local")refreshMilitary();
  else refreshAgeAndStatus();
