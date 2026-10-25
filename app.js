@@ -14,7 +14,7 @@ const $ = id => document.getElementById(id);
 const knownGovernmentHex = new Set([]); // V0.1: empty until a verifiable government dataset is integrated.
 let aircraft=[], selected="", filter="all", search="", updated=0, loading=false, styleIndex=0, requestedCenter=HOME.slice();
 let markers=new Map(), radiusNm=REGIONS.qatar.radius, queuedLoad=false, suppressAreaPrompt=false;
-const map=new maplibregl.Map({container:"map",style:STYLES[0],center:HOME,zoom:7.25,minZoom:3.6,maxZoom:16,attributionControl:false});
+const map=new maplibregl.Map({container:"map",style:STYLES[0],center:HOME,zoom:7.25,minZoom:3.6,maxZoom:16,bearing:0,pitch:0,maxPitch:0,dragRotate:false,attributionControl:false});
 map.addControl(new maplibregl.NavigationControl({showCompass:false}),"bottom-right");
 map.addControl(new maplibregl.AttributionControl({compact:true}),"bottom-right");
 const id=a=>String(a.hex||"").toLowerCase();
@@ -60,6 +60,7 @@ function renderList(shown){
    Do not use HTML/DOM markers here: they were visibly drifting on zoom. */
 const AIRCRAFT_SOURCE = "radarx-observations";
 const AIRCRAFT_LAYER = "radarx-planes";
+const ANCHOR_LAYER = "radarx-coordinate-anchor";
 const AIRCRAFT_LABELS = "radarx-aircraft-labels";
 let aircraftEventsAttached = false;
 
@@ -119,6 +120,24 @@ function installAircraftLayers(){
     if(!map.getSource(AIRCRAFT_SOURCE)){
       map.addSource(AIRCRAFT_SOURCE,{type:"geojson",data:makeAircraftGeoJSON()});
     }
+    // A separate geographic ring verifies the true point coordinate.
+    // It is visible only for the selected aircraft and never depends on plane icon sizing.
+    if(!map.getLayer(ANCHOR_LAYER)){
+      map.addLayer({
+        id:ANCHOR_LAYER,
+        type:"circle",
+        source:AIRCRAFT_SOURCE,
+        filter:["==",["get","selected"],1],
+        paint:{
+          "circle-radius":18,
+          "circle-color":"#087fd3",
+          "circle-opacity":0.08,
+          "circle-stroke-color":"#008fdc",
+          "circle-stroke-opacity":0.95,
+          "circle-stroke-width":2
+        }
+      });
+    }
     if(!map.getLayer(AIRCRAFT_LAYER)){
       map.addLayer({
         id:AIRCRAFT_LAYER,
@@ -132,8 +151,10 @@ function installAircraftLayers(){
               "radarx-plane-other"]],
           "icon-rotate":["get","heading"],
           "icon-rotation-alignment":"map",
-          "icon-pitch-alignment":"map",
-          "icon-size":["interpolate",["linear"],["zoom"],4,0.74,7,0.92,10,1.15,14,1.35],
+          "icon-pitch-alignment":"viewport",
+          "icon-anchor":"center",
+          "icon-offset":[0,0],
+          "icon-size":0.96,
           "icon-allow-overlap":true,
           "icon-ignore-placement":true,
           "symbol-sort-key":["get","priority"]
@@ -191,6 +212,7 @@ function renderDetails(){
  put("detailAltitude",altitude(a));put("detailSpeed",fmt(a.gs," kt"));put("detailHeading",fmt(a.track,"°"));
  put("detailRate",fmt(a.baro_rate," ft/min"));put("detailIcao",str(a,"hex").toUpperCase()||"—");
  put("detailSquawk",str(a,"squawk")||"—");
+ put("detailCoords",coord(a)?a.lat.toFixed(5)+", "+a.lon.toFixed(5):"Unavailable");
  put("detailAge",typeof a.seen_pos==="number"?Math.round(a.seen_pos)+" seconds at retrieval":"Unknown");
  put("detailMethod",str(a,"type")||"Unspecified");
  put("detailConfidence",type(a)==="military"?"Provider military database flag":type(a)==="government"?"Verified curated identity":"No special identity verified");
