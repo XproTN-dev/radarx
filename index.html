@@ -19,7 +19,7 @@
       <span class="brand-caption">AVIATION INTELLIGENCE</span>
     </div>
     <div class="top-actions">
-      <span class="top-region">GULF AIRSPACE</span>
+      <label class="region-control" for="regionSelect"><span>QUICK REGION</span><select id="regionSelect" aria-label="Choose region"><option value="qatar">Qatar / Doha</option><option value="bahrain">Bahrain</option><option value="uae">United Arab Emirates</option><option value="kuwait">Kuwait</option><option value="oman">Oman</option><option value="saudi">Eastern Saudi Arabia</option></select></label>
       <span class="live-indicator" id="liveIndicator"><span class="live-dot"></span><span id="liveLabel">CONNECTING</span></span>
       <button class="top-button" type="button" id="refreshButton" aria-label="Refresh aircraft">↻ <span>Refresh</span></button>
     </div>
@@ -29,22 +29,22 @@
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-intro">
         <div class="eyebrow">AIRCRAFT MONITOR</div>
-        <div class="sidebar-title">Live air traffic <span id="totalCount" class="count-pill">—</span></div>
-        <p class="sidebar-subtitle">Publicly received aircraft positions, not radar coverage.</p>
+        <div class="sidebar-title">Aircraft explorer <span id="totalCount" class="count-pill">—</span></div>
+        <p class="sidebar-subtitle">Live public ADS-B observations across your selected region.</p>
       </div>
       <div class="searchbox">
         <span class="search-icon">⌕</span>
         <input id="aircraftSearch" type="search" placeholder="Flight, aircraft, registration, hex" aria-label="Search aircraft" autocomplete="off">
         <kbd>/</kbd>
       </div>
-      <div class="filter-heading">AIRCRAFT CATEGORY</div>
+      <div class="filter-heading">FILTER BY AIRCRAFT CATEGORY <span class="filter-caption">SOURCE CLASSIFICATION</span></div>
       <div class="filter-row" id="filters" role="group" aria-label="Aircraft category">
         <button type="button" class="filter active" data-filter="all">All <span id="countAll">0</span></button>
         <button type="button" class="filter" data-filter="military">Military <span id="countMilitary">0</span></button>
         <button type="button" class="filter" data-filter="government">Government <span id="countGovernment">0</span></button>
         <button type="button" class="filter" data-filter="other">Other <span id="countOther">0</span></button>
       </div>
-      <div class="list-heading"><span id="listHeading">AIRCRAFT IN SEARCH AREA</span><span id="visibleCount">—</span></div>
+      <div class="list-heading"><span id="listHeading">AIRCRAFT IN CURRENT AREA</span><span id="visibleCount">—</span></div>
       <div id="listStatus" class="list-status" role="status">Connecting to aircraft feed…</div>
       <div id="aircraftList" class="aircraft-list" aria-label="Aircraft results"></div>
       <div class="sidebar-footer">
@@ -57,18 +57,18 @@
       <div id="map" aria-label="Interactive map of aircraft around the Gulf"></div>
       <div class="map-top-left">
         <div class="map-summary">
-          <div class="map-summary-heading"><span class="pulse-dot"></span> LIVE AVIATION MAP <span class="subtle-divider">|</span> <span id="mapAreaName">QATAR & THE GULF</span></div>
+          <div class="map-summary-heading"><span class="pulse-dot"></span> RADARX <span class="subtle-divider">•</span> <span id="mapAreaName">QATAR / DOHA</span></div>
           <div class="map-metrics">
-            <span><strong id="metricTracked">—</strong> observed</span>
-            <span><strong id="metricMil">—</strong> military-tagged</span>
-            <span><strong id="metricUpdated">—</strong> last updated</span>
+            <span class="metric-primary"><strong id="metricTracked">—</strong> aircraft</span>
+            <span><strong id="metricMil">—</strong> military tagged</span>
+            <span class="metric-time"><strong id="metricUpdated">—</strong> updated</span>
           </div>
         </div>
         <div id="errorBanner" class="error-banner hidden" role="alert"></div>
       </div>
       <div class="map-top-right">
-        <button class="floating-button" id="styleButton" type="button" title="Switch map style">◫ <span>Map style</span></button>
-        <button class="floating-button" id="recenterButton" type="button" title="Center on Qatar">⌖ <span>Qatar</span></button>
+        <button class="floating-button" id="styleButton" type="button" title="Switch between bright and alternate light map">◫ <span>Map layers</span></button>
+        <button class="floating-button" id="recenterButton" type="button" title="Return to Qatar / Doha">⌖ <span>Reset view</span></button>
       </div>
       <button id="searchAreaButton" class="search-area hidden" type="button">⌖ Search this area</button>
       <div class="map-bottom-left">
@@ -76,7 +76,7 @@
         <div class="age-note">Map positions may be delayed. Only aircraft with coordinates can be plotted.</div>
       </div>
       <div class="map-bottom-right">
-        <span class="data-credit">Data: <a href="https://flyitalyadsb.com/" target="_blank" rel="noopener noreferrer">FlyItalyADSB</a> · CC BY-SA 4.0</span>
+        <span class="data-credit">Aircraft data: <a href="https://flyitalyadsb.com/" target="_blank" rel="noopener noreferrer">FlyItalyADSB</a> · CC BY-SA 4.0</span>
       </div>
       <section id="detailPanel" class="detail-panel hidden" aria-label="Selected aircraft details">
         <div class="detail-head">
