@@ -71,7 +71,7 @@ const fmt=(n,unit="")=>typeof n==="number"&&Number.isFinite(n)?Math.round(n).toL
 const altitude=a=>a.alt_baro==="ground"?"ON GROUND":fmt(a.alt_baro," ft");
 const put=(key,value)=>$(key).textContent=value;
 function match(a){
- if(filter!=="all"&&type(a)!==filter)return false;
+ if(filter!=="all"&&(filter==="milgov"?!["military","government"].includes(type(a)):type(a)!==filter))return false;
  if(UI.airborne&&a.alt_baro==="ground")return false;
  if(UI.favouritesOnly&&!favourites.has(id(a)))return false;
  if(UI.inView&&(!coord(a)||!map.getBounds().contains([a.lon,a.lat])))return false;
@@ -115,6 +115,7 @@ function setFrozen(next,autoLoad=true){
 function renderCounts(){
  const m=aircraft.filter(a=>type(a)==="military").length,g=aircraft.filter(a=>type(a)==="government").length;
  put("totalCount",aircraft.length);put("countAll",aircraft.length);put("countMilitary",m);put("countGovernment",g);
+ put("countMilGov",m+g);
  put("countOther",aircraft.length-m-g);put("metricTracked",aircraft.length);put("metricMil",m);
  refreshAgeAndStatus();
 }
@@ -309,7 +310,7 @@ function renderDetails(){
  $("favouriteButton").textContent=favourites.has(selected)?"★ Remove favourite":"☆ Save aircraft";
  $("favouriteButton").setAttribute("aria-pressed",String(favourites.has(selected)));
 }
-function render(){const shown=aircraft.filter(match);renderCounts();renderList(shown);renderMarkers(shown);renderDetails();layoutLabels();if(UI.insights)renderInsights();}
+function render(){const shown=aircraft.filter(match);renderCounts();renderList(shown);renderMarkers(shown);renderDetails();layoutLabels();if(UI.insights)renderInsights();if(!$("diagnosticsPanel").classList.contains("hidden"))renderDiagnostics();}
 function select(code,pan){
  selected=code;render();const a=aircraft.find(x=>id(x)===code);
  if(pan&&a&&coord(a)){suppressAreaPrompt=true;$("searchAreaButton").classList.add("hidden");map.flyTo({center:[a.lon,a.lat],zoom:Math.max(map.getZoom(),7.5),speed:1.3});}
@@ -397,6 +398,46 @@ function showInsights(open){
 }
 $("insightsButton").addEventListener("click",()=>showInsights(!UI.insights));
 $("closeInsights").addEventListener("click",()=>showInsights(false));
+function renderDiagnostics(){
+ const categorized={military:0,government:0,other:0};
+ let missingPosition=0,stale=0,missingRegistration=0,missingModel=0,untracked=0;
+ let registryMatches=0,sourceFlagMatches=0,visible=0;
+ for(const a of aircraft){
+  categorized[type(a)]++;
+  if(!coord(a))missingPosition++;
+  else if(map.getBounds().contains([a.lon,a.lat]))visible++;
+  if(Number(a.seen_pos)>90)stale++;
+  if(!str(a,"r"))missingRegistration++;
+  if(!str(a,"t"))missingModel++;
+  if(registryLookup(a.hex))registryMatches++;
+  if((Number(a.dbFlags)&1)!==0)sourceFlagMatches++;
+  if(!registryLookup(a.hex)&&!(Number(a.dbFlags)&1))untracked++;
+ }
+ const measures=[
+ ["Feed aircraft",aircraft.length],
+ ["Military (tagged)",categorized.military],
+ ["Government (community)",categorized.government],
+ ["Other or unclassified",categorized.other],
+ ["Visible in viewport",visible],
+ ["No valid coordinates",missingPosition],
+ ["Position older than 90s",stale],
+ ["No registration",missingRegistration],
+ ["No model code",missingModel],
+ ["Community registry matches",registryMatches],
+ ["Provider military flags",sourceFlagMatches],
+ ["No military/government tag",untracked]
+ ];
+ const root=$("diagnosticGrid");root.replaceChildren();
+ for(const [name,value] of measures){
+  const box=document.createElement("div");
+  const lbl=document.createElement("small"),val=document.createElement("strong");
+  lbl.textContent=name;val.textContent=String(value);box.append(lbl,val);root.append(box);
+ }
+ const status=registryStatus();
+ put("diagnosticStatus",status.status+" · "+status.entries.toLocaleString()+" reference IDs loaded. Classification describes available records, not necessarily the actual aircraft operator. Feed age: "+(sampleAgeSeconds()??"unknown")+" seconds.");
+}
+$("diagnosticsButton").addEventListener("click",()=>{$("diagnosticsPanel").classList.remove("hidden");renderDiagnostics();});
+$("closeDiagnostics").addEventListener("click",()=>$("diagnosticsPanel").classList.add("hidden"));
 $("refreshButton").addEventListener("click",()=>{if(frozen)setFrozen(false);else load();});
 $("freezeButton").addEventListener("click",()=>setFrozen(!frozen));
 $("searchAreaButton").addEventListener("click",searchArea);
