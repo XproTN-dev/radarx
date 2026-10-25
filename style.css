@@ -108,3 +108,7 @@
 .diagnostic-grid>div{border-radius:7px;padding:11px;background:#f4f9fd;border:1px solid #e3eff6}
 .diagnostic-grid small{display:block;font-size:10px;color:#72869a}
 .diagnostic-grid strong{font-size:20px;color:#204e6d;display:block;margin-top:4px}
+
+/* RadarX V0.5.5 build identification */
+.version-note{font-size:10px;line-height:1.4;color:#71879b;background:#f5f9fc;border:1px solid #e1eaf0;border-radius:5px;margin:0 16px 10px;padding:7px 9px}
+.version-note strong{color:#0a79be}
