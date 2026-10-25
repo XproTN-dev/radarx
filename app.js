@@ -105,7 +105,9 @@ function refreshAgeAndStatus(){
   put("scanCoverageText",scan.freshSectors+"/"+scan.totalSectors+" sectors sampled within 90s. "+scan.staleAircraft+" older observations are hidden by default.");
   put("militaryFeedStatus",milAvailable?"Global military feed connected":Date.now()<milDisabledUntil?"Global military feed not available from Worker":"Checking global military feed…");
   if(frozen){connection(true,"SNAPSHOT FROZEN");return;}
-  connection(scan.missing===0,"REGIONAL SCAN");return;
+  const hasRecentSectors=scan.freshSectors>0;
+  const hasRecentMilitary=milAvailable&&scan.militaryFeedAgeSeconds!==null&&scan.militaryFeedAgeSeconds<=90;
+  connection(hasRecentSectors||hasRecentMilitary,"REGIONAL SURVEY");return;
  }
  put("metricUpdated",age===null?"unknown":age<60?age+"s ago":Math.floor(age/60)+"m "+(age%60)+"s ago");
  put("coverageRadius",radiusNm+" NM query · FlyItalyADSB feed");
