@@ -1,10 +1,15 @@
 import * as maplibregl from "https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.mjs";
 import {loadRegistry,registryLookup,aircraftKind,registryStatus} from "./aircraft-registry.js";
 import {observeCounts,aggregateSummary,sparklineSVG} from "./traffic-insights.js";
+import {nextSector,scanMerge,scanError,scanAircraft,scanStatus,clearScan} from "./regional-scan.js";
 const API = "https://radarx.saifeddinkhmiri.workers.dev";
 const REFRESH_INTERVAL_MS = 5000; // five-second browser polls; Worker TTL remains configured separately // check for updated cached observations about twice per minute
-const HOME = [51.53,25.72];
+const HOME = [35,28];
+let regionalMode="mena",bootstrapping=true,lastScanAt=0;
+const REGION_POLL_MS=20000;
 const REGIONS = {
+ mena:{center:[35,28],zoom:3.45,radius:250,label:"GULF + MENA / REGIONAL SCAN"},
+ gulf:{center:[51,26.4],zoom:5.2,radius:250,label:"GULF / REGIONAL SCAN"},
  qatar:{center:[51.53,25.72],zoom:7.25,radius:250,label:"QATAR / DOHA"},
  bahrain:{center:[50.64,26.17],zoom:7.45,radius:250,label:"BAHRAIN"},
  uae:{center:[54.66,24.81],zoom:7.0,radius:250,label:"UNITED ARAB EMIRATES"},
@@ -59,7 +64,7 @@ function transitionTo(next){
  }
  for(const key of transitions.keys())if(!present.has(key))transitions.delete(key);
 }
-const map=new maplibregl.Map({container:"map",style:STYLES[0],center:HOME,zoom:7.25,minZoom:3.6,maxZoom:16,bearing:0,pitch:0,maxPitch:0,dragRotate:false,attributionControl:false});
+const map=new maplibregl.Map({container:"map",style:STYLES[0],center:HOME,zoom:3.45,minZoom:2.5,maxZoom:16,bearing:0,pitch:0,maxPitch:0,dragRotate:false,attributionControl:false});
 map.addControl(new maplibregl.NavigationControl({showCompass:false}),"bottom-right");
 map.addControl(new maplibregl.AttributionControl({compact:true}),"bottom-right");
 const id=a=>String(a.hex||"").toLowerCase();
@@ -87,6 +92,13 @@ function toggleFavourite(){
 function sampleAgeSeconds(){return sampleTime?Math.max(0,Math.round((Date.now()-sampleTime)/1000)):null;}
 function refreshAgeAndStatus(){
  const age=sampleAgeSeconds();
+ if(regionalMode!=="local"){
+  const scan=scanStatus(regionalMode);
+  put("coverageRadius",scan.scanned+"/"+scan.totalSectors+" sectors checked · "+scan.aircraft+" unique aircraft · rotating scan");
+  put("metricUpdated",scan.scanned+" / "+scan.totalSectors+" sectors");
+  if(frozen){connection(true,"SNAPSHOT FROZEN");return;}
+  connection(scan.missing===0,"REGIONAL SCAN");return;
+ }
  put("metricUpdated",age===null?"unknown":age<60?age+"s ago":Math.floor(age/60)+"m "+(age%60)+"s ago");
  put("coverageRadius",radiusNm+" NM query · FlyItalyADSB feed");
  if(frozen){connection(true,"SNAPSHOT FROZEN");return;}
@@ -172,7 +184,7 @@ function drawPlaneIcon(fill) {
 function makeAircraftGeoJSON() {
   const features = [];
   for(const a of aircraft.filter(match)) {
-    if(!coord(a) || (Number.isFinite(Number(a.seen_pos)) && Number(a.seen_pos) > 90))continue;
+    if(!coord(a) || (Number.isFinite(Number(a.seen_pos)) && Number(a.seen_pos) > (regionalMode==="local"?90:720)))continue;
     features.push({
       type:"Feature",
       geometry:{type:"Point",coordinates:pointAt(transitions.get(id(a)),Date.now())||[a.lon,a.lat]},
@@ -320,6 +332,7 @@ function showError(message){put("errorBanner",message);$("errorBanner").classLis
 function connection(ok,message){$("liveIndicator").classList.toggle("bad",!ok);put("liveLabel",message);}
 async function load(){
  if(frozen)return;
+ if(regionalMode!=="local"){await loadRegion();return;}
  if(loading){queuedLoad=true;return;}loading=true;lastAttemptAt=Date.now();$("refreshButton").disabled=true;connection(true,"UPDATING");
  const [lon,lat]=requestedCenter;
  const query=new URLSearchParams({lat:lat.toFixed(4),lon:lon.toFixed(4),dist:String(radiusNm)});
@@ -350,11 +363,42 @@ async function load(){
   if(!aircraft.length)put("listStatus","Unable to load live aircraft. Check the Cloudflare Worker and try Refresh.");
  }finally{loading=false;$("refreshButton").disabled=false;if(queuedLoad&&!frozen){queuedLoad=false;load();}}
 }
+async function loadRegion(){
+ if(frozen||loading||document.visibilityState!=="visible")return;
+ loading=true;lastAttemptAt=Date.now();
+ const sector=nextSector(regionalMode);
+ const url=API+"/v1/near?"+new URLSearchParams({lat:String(sector.lat),lon:String(sector.lon),dist:"250"}).toString();
+ try{
+  const controller=new AbortController(),tid=setTimeout(()=>controller.abort(),16000);
+  let response;
+  try{response=await fetch(url,{cache:"no-store",signal:controller.signal});}finally{clearTimeout(tid);}
+  const data=await response.json();
+  if(!response.ok||!Array.isArray(data.ac))throw Error(String(data.error||"HTTP "+response.status));
+  if(frozen)return;
+  scanMerge(sector,data);
+  const next=scanAircraft();
+  transitionTo(next);
+  aircraft=next;
+  updated=Date.now();
+  const st=scanStatus(regionalMode);
+  put("mapAreaName",regionalMode==="gulf"?"GULF REGIONAL SCAN":"GULF + MENA");
+  if(!st.missing)bootstrapping=false;
+  observeCounts(Date.now(),aircraft.length,aircraft.filter(a=>type(a)==="military").length,aircraft.filter(a=>type(a)==="government").length,aircraft.filter(a=>type(a)==="other").length);
+  showError("");
+  render();animate();
+ }catch(err){
+  scanError(sector,err.message);
+  showError("Regional sector "+sector.label+" not available: "+err.message+". Other sectors remain visible.");
+ }finally{loading=false;lastScanAt=Date.now();refreshAgeAndStatus();}
+}
 function distanceKm(a,b,c,d){const r=Math.PI/180,z=Math.sin((d-b)*r/2)**2+Math.cos(b*r)*Math.cos(d*r)*Math.sin((c-a)*r/2)**2;return 12742*Math.asin(Math.min(1,Math.sqrt(z)));}
-function searchArea(){if(frozen)setFrozen(false,false);const c=map.getCenter();requestedCenter=[c.lng,c.lat];put("mapAreaName","CUSTOM SEARCH AREA");$("searchAreaButton").classList.add("hidden");load();}
+function searchArea(){if(regionalMode!=="local"){regionalMode="local";bootstrapping=false;$("regionSelect").value="qatar";aircraft=[];transitions.clear();}if(frozen)setFrozen(false,false);const c=map.getCenter();requestedCenter=[c.lng,c.lat];put("mapAreaName","CUSTOM SEARCH AREA");$("searchAreaButton").classList.add("hidden");load();}
 function activateRegion(regionKey){
  if(frozen)setFrozen(false,false);
- const region=REGIONS[regionKey]||REGIONS.qatar;
+ const region=REGIONS[regionKey]||REGIONS.mena;
+ const nextMode=regionKey==="mena"?"mena":regionKey==="gulf"?"gulf":"local";
+ if(nextMode!==regionalMode){clearScan();transitions.clear();aircraft=[];bootstrapping=true;lastScanAt=0;}
+ regionalMode=nextMode;
  requestedCenter=region.center.slice();
  radiusNm=region.radius;
  selected="";
@@ -399,6 +443,7 @@ function showInsights(open){
 $("insightsButton").addEventListener("click",()=>showInsights(!UI.insights));
 $("closeInsights").addEventListener("click",()=>showInsights(false));
 function renderDiagnostics(){
+ const regionStatus=regionalMode==="local"?null:scanStatus(regionalMode);
  const categorized={military:0,government:0,other:0};
  let missingPosition=0,stale=0,missingRegistration=0,missingModel=0,untracked=0;
  let registryMatches=0,sourceFlagMatches=0,visible=0;
@@ -414,6 +459,7 @@ function renderDiagnostics(){
   if(!registryLookup(a.hex)&&!(Number(a.dbFlags)&1))untracked++;
  }
  const measures=[
+ ...(regionStatus?[["Sectors scanned",regionStatus.scanned+"/"+regionStatus.totalSectors],["Sectors not yet sampled",regionStatus.missing]]:[]),
  ["Feed aircraft",aircraft.length],
  ["Military (tagged)",categorized.military],
  ["Government (community)",categorized.government],
@@ -441,7 +487,7 @@ $("closeDiagnostics").addEventListener("click",()=>$("diagnosticsPanel").classLi
 $("refreshButton").addEventListener("click",()=>{if(frozen)setFrozen(false);else load();});
 $("freezeButton").addEventListener("click",()=>setFrozen(!frozen));
 $("searchAreaButton").addEventListener("click",searchArea);
-$("recenterButton").addEventListener("click",()=>activateRegion("qatar"));
+$("recenterButton").addEventListener("click",()=>activateRegion(regionalMode==="local"?"qatar":regionalMode));
 $("regionSelect").addEventListener("change",e=>activateRegion(e.target.value));
 $("styleButton").addEventListener("click",()=>{styleIndex=(styleIndex+1)%STYLES.length;map.setStyle(STYLES[styleIndex]);$("styleButton").title="Map style: "+["Bright","Liberty","Positron","Dark"][styleIndex];});
 $("detailClose").addEventListener("click",()=>{selected="";render();});
@@ -449,14 +495,14 @@ $("sidebarToggle").addEventListener("click",()=>$("sidebar").classList.toggle("i
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){$("sidebar").classList.remove("is-open");selected="";render();}if(e.key==="/"&&!(e.target instanceof HTMLInputElement)){e.preventDefault();$("aircraftSearch").focus();$("sidebar").classList.add("is-open");}});
 setInterval(()=>{
  if(document.visibilityState!=="visible")return;
- if(!frozen&&Date.now()-Math.max(updated,lastAttemptAt)>=REFRESH_INTERVAL_MS)load();
+ if(!frozen&&Date.now()-Math.max(updated,lastAttemptAt)>=(regionalMode==="local"?REFRESH_INTERVAL_MS:(bootstrapping?2500:REGION_POLL_MS)))load();
  else refreshAgeAndStatus();
 },1000);
 document.addEventListener("visibilitychange",()=>{
  if(document.visibilityState==="hidden")stopAnimation();
  else{
   animate();
-  if(!frozen&&Date.now()-Math.max(updated,lastAttemptAt)>=REFRESH_INTERVAL_MS)load();
+  if(!frozen&&Date.now()-Math.max(updated,lastAttemptAt)>=(regionalMode==="local"?REFRESH_INTERVAL_MS:(bootstrapping?2500:REGION_POLL_MS)))load();
  }
 });
 map.on("zoomend",layoutLabels);
