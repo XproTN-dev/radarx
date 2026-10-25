@@ -2,7 +2,7 @@ import * as maplibregl from "https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-
 import {loadRegistry,registryLookup,aircraftKind,registryStatus} from "./aircraft-registry.js";
 import {observeCounts,aggregateSummary,sparklineSVG} from "./traffic-insights.js";
 const API = "https://radarx.saifeddinkhmiri.workers.dev";
-const REFRESH_INTERVAL_MS = 30000; // check for updated cached observations about twice per minute
+const REFRESH_INTERVAL_MS = 10000; // check for updated cached observations about twice per minute
 const HOME = [51.53,25.72];
 const REGIONS = {
  qatar:{center:[51.53,25.72],zoom:7.25,radius:250,label:"QATAR / DOHA"},
@@ -357,7 +357,7 @@ setInterval(()=>{
  if(document.visibilityState!=="visible")return;
  if(!frozen&&Date.now()-Math.max(updated,lastAttemptAt)>=REFRESH_INTERVAL_MS)load();
  else refreshAgeAndStatus();
-},5000);
+},1000);
 document.addEventListener("visibilitychange",()=>{
  if(document.visibilityState==="visible"&&!frozen&&Date.now()-Math.max(updated,lastAttemptAt)>=REFRESH_INTERVAL_MS)load();
 });
