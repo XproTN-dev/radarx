@@ -92,10 +92,12 @@ function toggleFavourite(){
 function sampleAgeSeconds(){return sampleTime?Math.max(0,Math.round((Date.now()-sampleTime)/1000)):null;}
 function refreshAgeAndStatus(){
  const age=sampleAgeSeconds();
+ if(regionalMode==="local")put("scanCoverageText","Local single-area query; no broader regional coverage.");
  if(regionalMode!=="local"){
   const scan=scanStatus(regionalMode);
   put("coverageRadius",scan.scanned+"/"+scan.totalSectors+" sectors checked · "+scan.aircraft+" unique aircraft · rotating scan");
   put("metricUpdated",scan.scanned+" / "+scan.totalSectors+" sectors");
+  put("scanCoverageText",scan.scanned+"/"+scan.totalSectors+" sectors sampled; results are staggered, not simultaneous.");
   if(frozen){connection(true,"SNAPSHOT FROZEN");return;}
   connection(scan.missing===0,"REGIONAL SCAN");return;
  }
@@ -128,6 +130,9 @@ function renderCounts(){
  const m=aircraft.filter(a=>type(a)==="military").length,g=aircraft.filter(a=>type(a)==="government").length;
  put("totalCount",aircraft.length);put("countAll",aircraft.length);put("countMilitary",m);put("countGovernment",g);
  put("countMilGov",m+g);
+ $("classificationCaution").textContent=(m+g)===0
+  ? "No military/government aircraft identified in received data. This is not proof of no activity."
+  : (m+g)+" identified in received data. Other aircraft may remain unclassified.";
  put("countOther",aircraft.length-m-g);put("metricTracked",aircraft.length);put("metricMil",m);
  refreshAgeAndStatus();
 }
