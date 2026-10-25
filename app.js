@@ -1,12 +1,20 @@
 import * as maplibregl from "https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.mjs";
 const API = "https://radarx.saifeddinkhmiri.workers.dev";
-const HOME = [51.53,25.72], RADIUS_NM = 180;
+const HOME = [51.53,25.72];
+const REGIONS = {
+ qatar:{center:[51.53,25.72],zoom:7.25,radius:180,label:"QATAR / DOHA"},
+ bahrain:{center:[50.64,26.17],zoom:7.45,radius:180,label:"BAHRAIN"},
+ uae:{center:[54.66,24.81],zoom:7.0,radius:180,label:"UNITED ARAB EMIRATES"},
+ kuwait:{center:[47.97,29.36],zoom:7.0,radius:180,label:"KUWAIT"},
+ oman:{center:[58.53,23.61],zoom:7.05,radius:180,label:"OMAN"},
+ saudi:{center:[49.82,26.45],zoom:7.0,radius:180,label:"EASTERN SAUDI ARABIA"}
+};
 const STYLES = ["https://tiles.openfreemap.org/styles/bright","https://tiles.openfreemap.org/styles/liberty"];
 const $ = id => document.getElementById(id);
 const knownGovernmentHex = new Set([]); // V0.1: empty until a verifiable government dataset is integrated.
 let aircraft=[], selected="", filter="all", search="", updated=0, loading=false, styleIndex=0, requestedCenter=HOME.slice();
-let markers=new Map();
-const map=new maplibregl.Map({container:"map",style:STYLES[0],center:HOME,zoom:6.25,minZoom:2.5,maxZoom:16,attributionControl:false});
+let markers=new Map(), radiusNm=REGIONS.qatar.radius, queuedLoad=false;
+const map=new maplibregl.Map({container:"map",style:STYLES[0],center:HOME,zoom:7.25,minZoom:3.6,maxZoom:16,attributionControl:false});
 map.addControl(new maplibregl.NavigationControl({showCompass:false}),"bottom-right");
 map.addControl(new maplibregl.AttributionControl({compact:true}),"bottom-right");
 const id=a=>String(a.hex||"").toLowerCase();
@@ -89,9 +97,9 @@ function select(code,pan){
 function showError(message){put("errorBanner",message);$("errorBanner").classList.toggle("hidden",!message);}
 function connection(ok,message){$("liveIndicator").classList.toggle("bad",!ok);put("liveLabel",message);}
 async function load(){
- if(loading)return;loading=true;$("refreshButton").disabled=true;connection(true,"UPDATING");
+ if(loading){queuedLoad=true;return;}loading=true;$("refreshButton").disabled=true;connection(true,"UPDATING");
  const [lon,lat]=requestedCenter;
- const query=new URLSearchParams({lat:lat.toFixed(4),lon:lon.toFixed(4),dist:String(RADIUS_NM)});
+ const query=new URLSearchParams({lat:lat.toFixed(4),lon:lon.toFixed(4),dist:String(radiusNm)});
  try{
   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),18000);let response;
   try{response=await fetch(API+"/v1/near?"+query.toString(),{signal:controller.signal,cache:"no-store"});}finally{clearTimeout(timeout);}
@@ -99,25 +107,40 @@ async function load(){
   if(!response.ok)throw Error(String(data.error||"HTTP "+response.status)+(data.upstream_status?" (upstream "+data.upstream_status+")":""));
   if(!Array.isArray(data.ac))throw Error("Invalid aircraft data: missing ac array");
   const seen=new Set();aircraft=data.ac.filter(a=>{if(!a||!a.hex||seen.has(id(a)))return false;seen.add(id(a));return true;});
-  updated=Date.now();$("searchAreaButton").classList.add("hidden");
+  updated=Date.now();
+  if(selected&&!aircraft.some(a=>id(a)===selected))selected="";
+  $("searchAreaButton").classList.add("hidden");
   showError("");connection(true,"FEED ONLINE");render();
  }catch(e){
   connection(false,"FEED UNAVAILABLE");
   showError("Aircraft feed unavailable: "+(e.name==="AbortError"?"request timed out":e.message)+". Existing results may be stale.");
   if(!aircraft.length)put("listStatus","Unable to load live aircraft. Check the Cloudflare Worker and try Refresh.");
- }finally{loading=false;$("refreshButton").disabled=false;}
+ }finally{loading=false;$("refreshButton").disabled=false;if(queuedLoad){queuedLoad=false;load();}}
 }
 function distanceKm(a,b,c,d){const r=Math.PI/180,z=Math.sin((d-b)*r/2)**2+Math.cos(b*r)*Math.cos(d*r)*Math.sin((c-a)*r/2)**2;return 12742*Math.asin(Math.min(1,Math.sqrt(z)));}
 function searchArea(){const c=map.getCenter();requestedCenter=[c.lng,c.lat];put("mapAreaName","CUSTOM SEARCH AREA");$("searchAreaButton").classList.add("hidden");load();}
+function activateRegion(regionKey){
+ const region=REGIONS[regionKey]||REGIONS.qatar;
+ requestedCenter=region.center.slice();
+ radiusNm=region.radius;
+ selected="";
+ put("mapAreaName",region.label);
+ $("regionSelect").value=regionKey;
+ $("searchAreaButton").classList.add("hidden");
+ map.flyTo({center:region.center,zoom:region.zoom,speed:1.4,essential:true});
+ load();
+}
 map.on("moveend",()=>{const c=map.getCenter();$("searchAreaButton").classList.toggle("hidden",distanceKm(c.lng,c.lat,requestedCenter[0],requestedCenter[1])<35);});
 map.on("error",e=>{if(!aircraft.length&&e.error)showError("Map tiles may be temporarily unavailable. Check your network or switch map style.");});
 $("filters").addEventListener("click",e=>{const button=e.target.closest("[data-filter]");if(!button)return;filter=button.dataset.filter;document.querySelectorAll(".filter").forEach(x=>x.classList.toggle("active",x===button));render();});
 $("aircraftSearch").addEventListener("input",e=>{search=e.target.value.trim().toLowerCase();render();});
 $("refreshButton").addEventListener("click",load);$("searchAreaButton").addEventListener("click",searchArea);
-$("recenterButton").addEventListener("click",()=>{requestedCenter=HOME.slice();put("mapAreaName","QATAR & THE GULF");map.flyTo({center:HOME,zoom:6.25});load();});
+$("recenterButton").addEventListener("click",()=>activateRegion("qatar"));
+$("regionSelect").addEventListener("change",e=>activateRegion(e.target.value));
 $("styleButton").addEventListener("click",()=>{styleIndex=(styleIndex+1)%STYLES.length;map.setStyle(STYLES[styleIndex]);$("styleButton").title=styleIndex?"Liberty style":"Bright style";});
 $("detailClose").addEventListener("click",()=>{selected="";render();});
 $("sidebarToggle").addEventListener("click",()=>$("sidebar").classList.toggle("is-open"));
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){$("sidebar").classList.remove("is-open");selected="";render();}if(e.key==="/"&&!(e.target instanceof HTMLInputElement)){e.preventDefault();$("aircraftSearch").focus();$("sidebar").classList.add("is-open");}});
 setInterval(()=>{if(document.visibilityState==="visible"){if(!updated||Date.now()-updated>=120000)load();else put("metricUpdated",Math.round((Date.now()-updated)/1000)+"s ago");}},10000);
-map.on("load",load);
+map.on("zoomend",()=>$("map").parentElement.classList.toggle("labels-on",map.getZoom()>=8.1));
+map.on("load",()=>{map.resize();load();});
