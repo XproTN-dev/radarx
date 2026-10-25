@@ -8,7 +8,7 @@
   <title>RadarX — Live Aviation Map</title>
   <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.css">
-  <link rel="stylesheet" href="./style.css?v=0.3.0">
+  <link rel="stylesheet" href="./style.css?v=0.3.1">
 </head>
 <body>
   <header class="topbar">
@@ -99,6 +99,7 @@
           <div><small>ICAO / HEX</small><strong id="detailIcao">—</strong></div>
           <div><small>SQUAWK</small><strong id="detailSquawk">—</strong></div>
         </div>
+        <div class="detail-line"><span>GPS latitude, longitude</span><strong id="detailCoords">—</strong></div>
         <div class="detail-line"><span>Position age</span><strong id="detailAge">—</strong></div>
         <div class="detail-line"><span>Position method</span><strong id="detailMethod">—</strong></div>
         <div class="detail-line"><span>Identification</span><strong id="detailConfidence">—</strong></div>
@@ -106,6 +107,6 @@
       </section>
     </main>
   </div>
-  <script type="module" src="./app.js?v=0.3.0"></script>
+  <script type="module" src="./app.js?v=0.3.1"></script>
 </body>
 </html>
