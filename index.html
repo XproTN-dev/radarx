@@ -8,7 +8,7 @@
   <title>RadarX — Live Aviation Map</title>
   <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.css">
-  <link rel="stylesheet" href="./style.css?v=0.3.1">
+  <link rel="stylesheet" href="./style.css?v=0.4.0">
 </head>
 <body>
   <header class="topbar">
@@ -21,6 +21,7 @@
     <div class="top-actions">
       <label class="region-control" for="regionSelect"><span>QUICK REGION</span><select id="regionSelect" aria-label="Choose region"><option value="qatar">Qatar / Doha</option><option value="bahrain">Bahrain</option><option value="uae">United Arab Emirates</option><option value="kuwait">Kuwait</option><option value="oman">Oman</option><option value="saudi">Eastern Saudi Arabia</option></select></label>
       <span class="live-indicator" id="liveIndicator"><span class="live-dot"></span><span id="liveLabel">CONNECTING</span></span>
+      <button class="top-button freeze-button" id="freezeButton" type="button" aria-pressed="false" title="Lock current coordinates while zooming">❄ Freeze positions</button>
       <button class="top-button" type="button" id="refreshButton" aria-label="Refresh aircraft">↻ <span>Refresh</span></button>
     </div>
   </header>
@@ -30,7 +31,7 @@
       <div class="sidebar-intro">
         <div class="eyebrow">AIRCRAFT MONITOR</div>
         <div class="sidebar-title">Aircraft explorer <span id="totalCount" class="count-pill">—</span></div>
-        <p class="sidebar-subtitle">Live public ADS-B observations across your selected region.</p>
+        <p class="sidebar-subtitle">Public ADS-B observations. Different coverage from Flightradar24; it is not a duplicate of that network.</p>
       </div>
       <div class="searchbox">
         <span class="search-icon">⌕</span>
@@ -48,7 +49,7 @@
       <div id="listStatus" class="list-status" role="status">Connecting to aircraft feed…</div>
       <div id="aircraftList" class="aircraft-list" aria-label="Aircraft results"></div>
       <div class="sidebar-footer">
-        <strong>RADARX / V0.1</strong>
+        <strong>RADARX / V0.4</strong>
         <span>Military = source-tagged. Government identification awaits verification.</span>
       </div>
     </aside>
@@ -61,7 +62,7 @@
           <div class="map-metrics">
             <span class="metric-primary"><strong id="metricTracked">—</strong> aircraft</span>
             <span><strong id="metricMil">—</strong> military tagged</span>
-            <span class="metric-time"><strong id="metricUpdated">—</strong> updated</span>
+            <span class="metric-time"><strong id="metricUpdated">—</strong> source age</span>
           </div>
         </div>
         <div id="errorBanner" class="error-banner hidden" role="alert"></div>
@@ -73,7 +74,7 @@
       <button id="searchAreaButton" class="search-area hidden" type="button">⌖ Search this area</button>
       <div class="map-bottom-left">
         <div class="legend"><span class="legend-label">AIRCRAFT</span><span><i class="legend-dot civilian"></i>Other / unverified</span><span><i class="legend-dot military"></i>Military-tagged</span><span><i class="legend-dot government"></i>Gov (verified)</span></div>
-        <div class="age-note">Map positions may be delayed. Only aircraft with coordinates can be plotted.</div>
+        <div class="age-note"><span id="coverageRadius">250 NM query · FlyItalyADSB feed</span>. Only observed positions are plotted; not all flights appear.</div>
       </div>
       <div class="map-bottom-right">
         <span class="data-credit">Aircraft data: <a href="https://flyitalyadsb.com/" target="_blank" rel="noopener noreferrer">FlyItalyADSB</a> · CC BY-SA 4.0</span>
@@ -107,6 +108,6 @@
       </section>
     </main>
   </div>
-  <script type="module" src="./app.js?v=0.3.1"></script>
+  <script type="module" src="./app.js?v=0.4.0"></script>
 </body>
 </html>
