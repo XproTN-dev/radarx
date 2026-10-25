@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#087ad4">
+  <meta name="description" content="RadarX — an independent Gulf aviation tracker powered by publicly available ADS-B observations.">
+  <title>RadarX — Live Aviation Map</title>
+  <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <button type="button" id="sidebarToggle" class="icon-button mobile-only" aria-label="Toggle aircraft list">☰</button>
+      <span class="logo" aria-hidden="true"><span class="logo-sweep"></span></span>
+      <span class="brandname">RADAR<span>X</span></span>
+      <span class="brand-caption">AVIATION INTELLIGENCE</span>
+    </div>
+    <div class="top-actions">
+      <span class="top-region">GULF AIRSPACE</span>
+      <span class="live-indicator" id="liveIndicator"><span class="live-dot"></span><span id="liveLabel">CONNECTING</span></span>
+      <button class="top-button" type="button" id="refreshButton" aria-label="Refresh aircraft">↻ <span>Refresh</span></button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-intro">
+        <div class="eyebrow">AIRCRAFT MONITOR</div>
+        <div class="sidebar-title">Live air traffic <span id="totalCount" class="count-pill">—</span></div>
+        <p class="sidebar-subtitle">Publicly received aircraft positions, not radar coverage.</p>
+      </div>
+      <div class="searchbox">
+        <span class="search-icon">⌕</span>
+        <input id="aircraftSearch" type="search" placeholder="Flight, aircraft, registration, hex" aria-label="Search aircraft" autocomplete="off">
+        <kbd>/</kbd>
+      </div>
+      <div class="filter-heading">AIRCRAFT CATEGORY</div>
+      <div class="filter-row" id="filters" role="group" aria-label="Aircraft category">
+        <button type="button" class="filter active" data-filter="all">All <span id="countAll">0</span></button>
+        <button type="button" class="filter" data-filter="military">Military <span id="countMilitary">0</span></button>
+        <button type="button" class="filter" data-filter="government">Government <span id="countGovernment">0</span></button>
+        <button type="button" class="filter" data-filter="other">Other <span id="countOther">0</span></button>
+      </div>
+      <div class="list-heading"><span id="listHeading">AIRCRAFT IN SEARCH AREA</span><span id="visibleCount">—</span></div>
+      <div id="listStatus" class="list-status" role="status">Connecting to aircraft feed…</div>
+      <div id="aircraftList" class="aircraft-list" aria-label="Aircraft results"></div>
+      <div class="sidebar-footer">
+        <strong>RADARX / V0.1</strong>
+        <span>Military = source-tagged. Government identification awaits verification.</span>
+      </div>
+    </aside>
+
+    <main class="map-panel">
+      <div id="map" aria-label="Interactive map of aircraft around the Gulf"></div>
+      <div class="map-top-left">
+        <div class="map-summary">
+          <div class="map-summary-heading"><span class="pulse-dot"></span> LIVE AVIATION MAP <span class="subtle-divider">|</span> <span id="mapAreaName">QATAR & THE GULF</span></div>
+          <div class="map-metrics">
+            <span><strong id="metricTracked">—</strong> observed</span>
+            <span><strong id="metricMil">—</strong> military-tagged</span>
+            <span><strong id="metricUpdated">—</strong> last updated</span>
+          </div>
+        </div>
+        <div id="errorBanner" class="error-banner hidden" role="alert"></div>
+      </div>
+      <div class="map-top-right">
+        <button class="floating-button" id="styleButton" type="button" title="Switch map style">◫ <span>Map style</span></button>
+        <button class="floating-button" id="recenterButton" type="button" title="Center on Qatar">⌖ <span>Qatar</span></button>
+      </div>
+      <button id="searchAreaButton" class="search-area hidden" type="button">⌖ Search this area</button>
+      <div class="map-bottom-left">
+        <div class="legend"><span class="legend-label">AIRCRAFT</span><span><i class="legend-dot civilian"></i>Other / unverified</span><span><i class="legend-dot military"></i>Military-tagged</span><span><i class="legend-dot government"></i>Gov (verified)</span></div>
+        <div class="age-note">Map positions may be delayed. Only aircraft with coordinates can be plotted.</div>
+      </div>
+      <div class="map-bottom-right">
+        <span class="data-credit">Data: <a href="https://flyitalyadsb.com/" target="_blank" rel="noopener noreferrer">FlyItalyADSB</a> · CC BY-SA 4.0</span>
+      </div>
+      <section id="detailPanel" class="detail-panel hidden" aria-label="Selected aircraft details">
+        <div class="detail-head">
+          <div>
+            <div class="eyebrow" id="detailClass">AIRCRAFT DETAILS</div>
+            <h2 id="detailCallsign">—</h2>
+            <span id="detailRegistration" class="detail-reg">—</span>
+          </div>
+          <button id="detailClose" type="button" class="detail-close" aria-label="Close details">×</button>
+        </div>
+        <div class="detail-hero">
+          <span class="large-plane" aria-hidden="true">✈</span>
+          <div><strong id="detailType">—</strong><span id="detailDesc">Aircraft type</span></div>
+        </div>
+        <div class="detail-grid">
+          <div><small>BARO ALTITUDE</small><strong id="detailAltitude">—</strong></div>
+          <div><small>GROUND SPEED</small><strong id="detailSpeed">—</strong></div>
+          <div><small>HEADING / TRACK</small><strong id="detailHeading">—</strong></div>
+          <div><small>VERTICAL RATE</small><strong id="detailRate">—</strong></div>
+          <div><small>ICAO / HEX</small><strong id="detailIcao">—</strong></div>
+          <div><small>SQUAWK</small><strong id="detailSquawk">—</strong></div>
+        </div>
+        <div class="detail-line"><span>Position age</span><strong id="detailAge">—</strong></div>
+        <div class="detail-line"><span>Position method</span><strong id="detailMethod">—</strong></div>
+        <div class="detail-line"><span>Identification</span><strong id="detailConfidence">—</strong></div>
+        <div class="detail-disclaimer">RadarX displays reported observations. Classification and positions may be incomplete, delayed or incorrect.</div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
