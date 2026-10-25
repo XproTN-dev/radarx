@@ -1,0 +1,24 @@
+name: RadarX code checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check JavaScript syntax
+        run: |
+          node --check app.js
+          node --check aircraft-registry.js
+          node --check traffic-insights.js
+      - name: Validate page references
+        run: |
+          node -e "const fs=require('fs');const h=fs.readFileSync('index.html','utf8');for(const f of ['app.js','style.css'])if(!h.includes(f))throw new Error('Missing asset '+f);console.log('Page links verified')"
