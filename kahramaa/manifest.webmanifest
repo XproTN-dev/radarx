@@ -1,0 +1,20 @@
+{
+  "id": "./",
+  "name": "Kahramaa X — إدارة الطاقة",
+  "short_name": "Kahramaa X",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#101720",
+  "theme_color": "#101720",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
